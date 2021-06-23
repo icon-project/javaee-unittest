@@ -16,9 +16,9 @@
 
 package score;
 
-import com.iconloop.testsvc.Account;
-import com.iconloop.testsvc.ServiceManager;
-import com.iconloop.testsvc.TestBase;
+import com.iconloop.score.test.Account;
+import com.iconloop.score.test.ServiceManager;
+import com.iconloop.score.test.TestBase;
 import score.impl.AnyDBImpl;
 
 import java.math.BigInteger;

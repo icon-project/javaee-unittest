@@ -16,8 +16,8 @@
 
 package score.impl;
 
-import com.iconloop.testsvc.ServiceManager;
-import com.iconloop.testsvc.TestBase;
+import com.iconloop.score.test.ServiceManager;
+import com.iconloop.score.test.TestBase;
 import score.Address;
 
 import java.math.BigInteger;

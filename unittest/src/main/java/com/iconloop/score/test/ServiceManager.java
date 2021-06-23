@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.iconloop.testsvc;
+package com.iconloop.score.test;
 
 import score.Address;
 
