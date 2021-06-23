@@ -11,7 +11,7 @@ You can include this package from [Maven Central](https://search.maven.org/searc
 by adding the following dependency in your `build.gradle`.
 
 ```groovy
-implementation 'foundation.icon:javaee-unittest:0.9.0'
+testImplementation 'foundation.icon:javaee-unittest:0.9.0'
 ```
 
 For a more complete example, please visit [Java SCORE Examples](https://github.com/icon-project/java-score-examples).
