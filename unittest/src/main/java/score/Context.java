@@ -20,6 +20,8 @@ import com.iconloop.score.test.Account;
 import com.iconloop.score.test.ServiceManager;
 import com.iconloop.score.test.TestBase;
 import score.impl.AnyDBImpl;
+import score.impl.RLPObjectReader;
+import score.impl.RLPObjectWriter;
 
 import java.math.BigInteger;
 
@@ -192,10 +194,16 @@ public final class Context extends TestBase {
     }
 
     public static ObjectReader newByteArrayObjectReader(String codec, byte[] byteArray) {
-        return null;
+        if ("RLPn".equals(codec)) {
+            return new RLPObjectReader(byteArray);
+        }
+        throw new IllegalArgumentException("Unknown codec");
     }
 
     public static ByteArrayObjectWriter newByteArrayObjectWriter(String codec) {
-        return null;
+        if ("RLPn".equals(codec)) {
+            return new RLPObjectWriter();
+        }
+        throw new IllegalArgumentException("Unknown codec");
     }
 }
