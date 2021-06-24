@@ -23,7 +23,7 @@ import score.impl.AnyDBImpl;
 
 import java.math.BigInteger;
 
-public class Context extends TestBase {
+public final class Context extends TestBase {
     private static final ServiceManager sm = getServiceManager();
     private static final StackWalker stackWalker =
             StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE);
@@ -79,9 +79,20 @@ public class Context extends TestBase {
         return Account.getAccount(address).getBalance();
     }
 
-    public static Object call(BigInteger value, Address targetAddress, String method, Object... params) {
+    public static<T> T call(Class<T> cls, BigInteger value,
+                            Address targetAddress, String method, Object... params) {
+        return null;
+    }
+
+    public static Object call(BigInteger value,
+                              Address targetAddress, String method, Object... params) {
         var caller = stackWalker.getCallerClass();
         return sm.call(caller, value, targetAddress, method, params);
+    }
+
+    public static<T> T call(Class<T> cls,
+                            Address targetAddress, String method, Object... params) {
+        return null;
     }
 
     public static Object call(Address targetAddress, String method, Object... params) {
@@ -92,6 +103,14 @@ public class Context extends TestBase {
     public static void transfer(Address targetAddress, BigInteger value) {
         var caller = stackWalker.getCallerClass();
         sm.call(caller, value, targetAddress, "fallback");
+    }
+
+    public static Address deploy(byte[] content, Object... params) {
+        return null;
+    }
+
+    public static Address deploy(Address targetAddress, byte[] content, Object... params) {
+        return null;
     }
 
     public static void revert(int code, String message) {
@@ -126,23 +145,27 @@ public class Context extends TestBase {
         System.out.println(message);
     }
 
-    public static byte[] sha3_256(byte[] data) throws IllegalArgumentException {
+    public static byte[] hash(String alg, byte[] msg) {
         return null;
     }
 
-    public static byte[] sha256(byte[] data) throws IllegalArgumentException {
+    public static boolean verifySignature(String alg, byte[] msg, byte[] sig, byte[] pubKey) {
+        return false;
+    }
+
+    public static byte[] recoverKey(String alg, byte[] msg, byte[] sig, boolean compressed) {
         return null;
     }
 
-    public static byte[] recoverKey(byte[] msgHash, byte[] signature, boolean compressed) {
+    public static Address getAddressFromKey(byte[] pubKey) {
         return null;
     }
 
-    public static Address getAddressFromKey(byte[] publicKey) {
-        return null;
+    public static int getFeeSharingProportion() {
+        return 0;
     }
 
-    public static void logEvent(Object[] indexed, Object[] data) {
+    public static void setFeeSharingProportion(int proportion) {
     }
 
     @SuppressWarnings("unchecked")
@@ -163,5 +186,16 @@ public class Context extends TestBase {
     @SuppressWarnings("unchecked")
     public static<E> VarDB<E> newVarDB(String id, Class<E> valueClass) {
         return new AnyDBImpl(id, valueClass);
+    }
+
+    public static void logEvent(Object[] indexed, Object[] data) {
+    }
+
+    public static ObjectReader newByteArrayObjectReader(String codec, byte[] byteArray) {
+        return null;
+    }
+
+    public static ByteArrayObjectWriter newByteArrayObjectWriter(String codec) {
+        return null;
     }
 }
