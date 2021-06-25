@@ -20,6 +20,7 @@ import com.iconloop.score.test.Account;
 import com.iconloop.score.test.ServiceManager;
 import com.iconloop.score.test.TestBase;
 import score.impl.AnyDBImpl;
+import score.impl.Crypto;
 import score.impl.RLPObjectReader;
 import score.impl.RLPObjectWriter;
 
@@ -148,19 +149,29 @@ public final class Context extends TestBase {
     }
 
     public static byte[] hash(String alg, byte[] msg) {
-        return null;
+        require(null != alg, "Algorithm can't be NULL");
+        require(null != msg, "Message can't be NULL");
+        return Crypto.hash(alg, msg);
     }
 
     public static boolean verifySignature(String alg, byte[] msg, byte[] sig, byte[] pubKey) {
-        return false;
+        require(null != alg, "Algorithm can't be NULL");
+        require(null != msg, "Message can't be NULL");
+        require(null != sig, "Signature can't be NULL");
+        require(null != pubKey, "Public key can't be NULL");
+        return Crypto.verifySignature(alg, msg, sig, pubKey);
     }
 
     public static byte[] recoverKey(String alg, byte[] msg, byte[] sig, boolean compressed) {
-        return null;
+        require(null != msg && null != sig);
+        require(msg.length == 32, "the length of msg must be 32");
+        require(sig.length == 65, "the length of sig must be 65");
+        return Crypto.recoverKey(alg, msg, sig, compressed);
     }
 
     public static Address getAddressFromKey(byte[] pubKey) {
-        return null;
+        require(null != pubKey, "pubKey can't be NULL");
+        return new Address(Crypto.getAddressBytesFromKey(pubKey));
     }
 
     public static int getFeeSharingProportion() {
