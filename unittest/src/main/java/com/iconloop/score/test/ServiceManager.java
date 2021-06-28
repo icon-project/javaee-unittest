@@ -149,11 +149,16 @@ public class ServiceManager {
         return storageMap.get(getAddress().toString() + key);
     }
 
+    public void sleep(long microseconds) {
+        getBlock().sleep(microseconds);
+    }
+
     public static class Block {
         private static Block sInstance;
 
         private long height;
         private long timestamp;
+        private long sleeptime = 0;
 
         public Block(long height, long timestamp) {
             this.height = height;
@@ -173,7 +178,11 @@ public class ServiceManager {
         }
 
         public long getTimestamp() {
-            return timestamp;
+            return sleeptime + timestamp;
+        }
+
+        public void sleep(long microseconds) {
+            sleeptime += microseconds;
         }
 
         public void increase() {
