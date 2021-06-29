@@ -155,7 +155,7 @@ public class ServiceManager {
         private long height;
         private long timestamp;
 
-        public Block(long height, long timestamp) {
+        private Block(long height, long timestamp) {
             this.height = height;
             this.timestamp = timestamp;
         }
@@ -182,7 +182,7 @@ public class ServiceManager {
 
         public void increase(long delta) {
             height += delta;
-            timestamp = System.nanoTime() / 1000;
+            timestamp += 2_000_000 * delta; // 2 secs block generation
         }
     }
 

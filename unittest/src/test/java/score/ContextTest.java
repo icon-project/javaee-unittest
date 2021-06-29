@@ -48,6 +48,14 @@ class ContextTest extends TestBase {
     }
 
     @Test
+    void getBlockTimestamp() {
+        long start = sm.getBlock().getTimestamp();
+        assertEquals(start, helloScore.call("getBlockTimestamp"));
+        sm.getBlock().increase(100);
+        assertEquals(start + 2_000_000 * 100, helloScore.call("getBlockTimestamp"));
+    }
+
+    @Test
     void hash() {
         byte[] data = "Hello world".getBytes();
         assertArrayEquals(Crypto.hash("sha3-256", data),

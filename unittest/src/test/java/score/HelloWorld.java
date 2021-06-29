@@ -41,6 +41,11 @@ public class HelloWorld {
     }
 
     @External(readonly=true)
+    public long getBlockTimestamp() {
+        return Context.getBlockTimestamp();
+    }
+
+    @External(readonly=true)
     public byte[] computeHash(String algorithm, byte[] data) {
         if ("sha3-256".equals(algorithm)) {
             return Context.hash(algorithm, data);
