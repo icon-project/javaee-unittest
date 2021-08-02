@@ -67,15 +67,19 @@ public class Score extends TestBase {
         Class<?>[] paramClasses = new Class<?>[params.length];
         for (int i = 0; i < params.length; i++) {
             Class<?> type = params[i].getClass();
-            // Convert supported object types to native types
+            // Convert supported object types to primitive data types
             if (type == Integer.class) {
-                paramClasses[i] = Integer.TYPE;
+                paramClasses[i] = Integer.TYPE; // int
             } else if (type == Long.class) {
-                paramClasses[i] = Long.TYPE;
+                paramClasses[i] = Long.TYPE; // long
             } else if (type == Short.class) {
-                paramClasses[i] = Short.TYPE;
+                paramClasses[i] = Short.TYPE; // short
+            } else if (type == Character.class) {
+                paramClasses[i] = Character.TYPE; // char
+            } else if (type == Byte.class) {
+                paramClasses[i] = Byte.TYPE; // byte
             } else if (type == Boolean.class) {
-                paramClasses[i] = Boolean.TYPE;
+                paramClasses[i] = Boolean.TYPE; // boolean
             } else {
                 paramClasses[i] = type;
             }
