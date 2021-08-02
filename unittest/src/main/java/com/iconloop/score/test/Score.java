@@ -67,7 +67,14 @@ public class Score extends TestBase {
         Class<?>[] paramClasses = new Class<?>[params.length];
         for (int i = 0; i < params.length; i++) {
             Class<?> type = params[i].getClass();
-            paramClasses[i] = (type == Boolean.class) ? Boolean.TYPE : type;
+            // Convert supported object types to native types
+            if (type == Integer.class) {
+                paramClasses[i] = Integer.TYPE;
+            } else if (type == Boolean.class) {
+                paramClasses[i] = Boolean.TYPE;
+            } else {
+                paramClasses[i] = type;
+            }
         }
         try {
             Class<?> clazz = instance.getClass();
