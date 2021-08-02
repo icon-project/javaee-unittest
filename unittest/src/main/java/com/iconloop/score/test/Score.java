@@ -72,6 +72,8 @@ public class Score extends TestBase {
                 paramClasses[i] = Integer.TYPE;
             } else if (type == Long.class) {
                 paramClasses[i] = Long.TYPE;
+            } else if (type == Short.class) {
+                paramClasses[i] = Short.TYPE;
             } else if (type == Boolean.class) {
                 paramClasses[i] = Boolean.TYPE;
             } else {
