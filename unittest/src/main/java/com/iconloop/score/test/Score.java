@@ -70,6 +70,8 @@ public class Score extends TestBase {
             // Convert supported object types to native types
             if (type == Integer.class) {
                 paramClasses[i] = Integer.TYPE;
+            } else if (type == Long.class) {
+                paramClasses[i] = Long.TYPE;
             } else if (type == Boolean.class) {
                 paramClasses[i] = Boolean.TYPE;
             } else {
