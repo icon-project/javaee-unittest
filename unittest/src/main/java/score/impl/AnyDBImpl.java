@@ -19,7 +19,12 @@ package score.impl;
 import com.iconloop.score.test.ServiceManager;
 import com.iconloop.score.test.TestBase;
 import score.Address;
+import score.ByteArrayObjectWriter;
+import score.Context;
+import score.ObjectReader;
+import score.ObjectWriter;
 
+import java.lang.reflect.InvocationTargetException;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 
@@ -65,11 +70,45 @@ public class AnyDBImpl extends TestBase implements AnyDB {
     }
 
     private void setValue(String key, Object value) {
-        sm.putStorage(key, value);
+        
+        if (sm.getCurrentFrame().isReadonly()) {
+            throw new IllegalStateException("read-only context");
+        }
+
+        var clazz = value.getClass();
+
+        try {
+            var writeObject = clazz.getMethod("writeObject", ObjectWriter.class, value.getClass());
+            ByteArrayObjectWriter w = Context.newByteArrayObjectWriter("RLPn");
+            writeObject.invoke(null, w, value);
+            sm.putStorage(key, w.toByteArray(), value.getClass());
+        } catch (NoSuchMethodException e) {
+            sm.putStorage(key, value);
+        } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
+            e.printStackTrace();
+            throw new IllegalArgumentException();
+        }
     }
 
     private Object getValue(String key) {
-        return sm.getStorage(key);
+        var value = sm.getStorage(key);
+        Class<?> clazz = sm.getStorageClass(key);
+
+        if (clazz == null) {
+            return value;
+        }
+        
+        try {
+            var readObject = clazz.getMethod("readObject", ObjectReader.class);
+            byte[] serialized = (byte[]) value;
+            ObjectReader r = Context.newByteArrayObjectReader("RLPn", serialized);
+            return readObject.invoke(null, r);
+        } catch (NoSuchMethodException e) {
+            return value;
+        } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
+            e.printStackTrace();
+            throw new IllegalArgumentException();
+        }
     }
 
     // DictDB
