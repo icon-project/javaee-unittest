@@ -33,6 +33,7 @@ public class ServiceManager {
     private final Map<Class<?>, Score> classScoreMap = new HashMap<>();
     private final Map<Address, Score> addressScoreMap = new HashMap<>();
     private final Map<String, Object> storageMap = new HashMap<>();
+    private final Map<String, Class<?>> storageClassMap = new HashMap<>();
     private int nextCount = 1;
 
     public Score deploy(Account owner, Class<?> mainClass, Object... params) throws Exception {
@@ -142,11 +143,20 @@ public class ServiceManager {
     }
 
     public void putStorage(String key, Object value) {
+        putStorage(key, value, value.getClass());
+    }
+
+    public void putStorage(String key, Object value, Class<?> clazz) {
         storageMap.put(getAddress().toString() + key, value);
+        storageClassMap.put(getAddress().toString() + key, clazz);
     }
 
     public Object getStorage(String key) {
         return storageMap.get(getAddress().toString() + key);
+    }
+
+    public Class<?> getStorageClass(String key) {
+        return storageClassMap.get(getAddress().toString() + key);
     }
 
     public static class Block {
