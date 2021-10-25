@@ -143,7 +143,7 @@ public class ServiceManager {
     }
 
     public void putStorage(String key, Object value) {
-        putStorage(key, value, value.getClass());
+        putStorage(key, value, value != null ? value.getClass() : null);
     }
 
     public void putStorage(String key, Object value, Class<?> clazz) {

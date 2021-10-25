@@ -75,19 +75,26 @@ public class AnyDBImpl extends TestBase implements AnyDB {
             throw new IllegalStateException("read-only context");
         }
 
-        var clazz = value.getClass();
-
-        try {
-            var writeObject = clazz.getMethod("writeObject", ObjectWriter.class, value.getClass());
-            ByteArrayObjectWriter w = Context.newByteArrayObjectWriter("RLPn");
-            writeObject.invoke(null, w, value);
-            sm.putStorage(key, w.toByteArray(), value.getClass());
-        } catch (NoSuchMethodException e) {
+        if (value == null) {
+            // delete from storage
             sm.putStorage(key, value);
-        } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
-            e.printStackTrace();
-            throw new IllegalArgumentException();
+        } else {
+            try {
+                // Custom AnyDB
+                var clazz = value.getClass();
+                var writeObject = clazz.getMethod("writeObject", ObjectWriter.class, clazz);
+                ByteArrayObjectWriter w = Context.newByteArrayObjectWriter("RLPn");
+                writeObject.invoke(null, w, value);
+                sm.putStorage(key, w.toByteArray(), clazz);
+            } catch (NoSuchMethodException e) {
+                // Native AnyDB
+                sm.putStorage(key, value);
+            } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
+                e.printStackTrace();
+                throw new IllegalArgumentException();
+            }
         }
+
     }
 
     private Object getValue(String key) {
@@ -95,15 +102,18 @@ public class AnyDBImpl extends TestBase implements AnyDB {
         Class<?> clazz = sm.getStorageClass(key);
 
         if (clazz == null) {
+            // Undefined
             return value;
         }
-        
+
         try {
+            // Custom AnyDB
             var readObject = clazz.getMethod("readObject", ObjectReader.class);
             byte[] serialized = (byte[]) value;
             ObjectReader r = Context.newByteArrayObjectReader("RLPn", serialized);
             return readObject.invoke(null, r);
         } catch (NoSuchMethodException e) {
+            // Native AnyDB
             return value;
         } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
             e.printStackTrace();
