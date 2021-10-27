@@ -19,7 +19,12 @@ package score.impl;
 import com.iconloop.score.test.ServiceManager;
 import com.iconloop.score.test.TestBase;
 import score.Address;
+import score.ByteArrayObjectWriter;
+import score.Context;
+import score.ObjectReader;
+import score.ObjectWriter;
 
+import java.lang.reflect.InvocationTargetException;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 
@@ -65,11 +70,55 @@ public class AnyDBImpl extends TestBase implements AnyDB {
     }
 
     private void setValue(String key, Object value) {
-        sm.putStorage(key, value);
+        
+        if (sm.getCurrentFrame().isReadonly()) {
+            throw new IllegalStateException("read-only context");
+        }
+
+        if (value == null) {
+            // delete from storage
+            sm.putStorage(key, value);
+        } else {
+            try {
+                // Custom AnyDB
+                var clazz = value.getClass();
+                var writeObject = clazz.getMethod("writeObject", ObjectWriter.class, clazz);
+                ByteArrayObjectWriter w = Context.newByteArrayObjectWriter("RLPn");
+                writeObject.invoke(null, w, value);
+                sm.putStorage(key, w.toByteArray(), clazz);
+            } catch (NoSuchMethodException e) {
+                // Native AnyDB
+                sm.putStorage(key, value);
+            } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
+                e.printStackTrace();
+                throw new IllegalArgumentException();
+            }
+        }
+
     }
 
     private Object getValue(String key) {
-        return sm.getStorage(key);
+        var value = sm.getStorage(key);
+        Class<?> clazz = sm.getStorageClass(key);
+
+        if (clazz == null) {
+            // Undefined
+            return value;
+        }
+
+        try {
+            // Custom AnyDB
+            var readObject = clazz.getMethod("readObject", ObjectReader.class);
+            byte[] serialized = (byte[]) value;
+            ObjectReader r = Context.newByteArrayObjectReader("RLPn", serialized);
+            return readObject.invoke(null, r);
+        } catch (NoSuchMethodException e) {
+            // Native AnyDB
+            return value;
+        } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
+            e.printStackTrace();
+            throw new IllegalArgumentException();
+        }
     }
 
     // DictDB
