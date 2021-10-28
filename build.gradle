@@ -12,9 +12,9 @@ nexusPublishing {
     packageGroup = GROUP
     repositories {
         sonatype {
-            stagingProfileId = project.hasProperty('mavenProfileId') ? "$mavenProfileId" : ''
-            username = project.hasProperty('mavenCentralUsername') ? "$mavenCentralUsername" : ''
-            password = project.hasProperty('mavenCentralPassword') ? "$mavenCentralPassword" : ''
+            stagingProfileId = findProperty('mavenProfileId') ?: System.getenv("STAGING_PROFILE_ID")
+            username = findProperty('mavenCentralUsername') ?: System.getenv("OSSRH_USERNAME")
+            password = findProperty('mavenCentralPassword') ?: System.getenv("OSSRH_PASSWORD")
         }
     }
 }

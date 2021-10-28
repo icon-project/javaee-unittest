@@ -89,5 +89,10 @@ publishing {
 
 signing {
     required rootProject.hasProperty('release')
+    if (rootProject.hasProperty('signingKey')) {
+        def signingKey = rootProject.findProperty("signingKey")
+        def signingPassword = rootProject.findProperty("signingPassword")
+        useInMemoryPgpKeys(signingKey, signingPassword)
+    }
     sign publishing.publications.mavenJava
 }
