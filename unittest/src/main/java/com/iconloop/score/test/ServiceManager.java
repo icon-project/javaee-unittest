@@ -85,7 +85,7 @@ public class ServiceManager {
         return getCurrentFrame().to.getAddress();
     }
 
-    private Score getScoreFromClass(Class<?> caller) {
+    public Score getScoreFromClass(Class<?> caller) {
         var score = classScoreMap.get(caller);
         if (score == null) {
             for (Class<?> clazz: classScoreMap.keySet()) {
