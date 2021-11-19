@@ -18,8 +18,11 @@ package com.iconloop.score.test;
 
 import score.Address;
 
+import java.lang.reflect.Array;
 import java.lang.reflect.InvocationTargetException;
 import java.math.BigInteger;
+import java.util.HashMap;
+import java.util.Map;
 
 public class Score extends TestBase {
     private static final ServiceManager sm = getServiceManager();
@@ -62,6 +65,66 @@ public class Score extends TestBase {
         call(from, false, BigInteger.ZERO, method, params);
     }
 
+    private Object getReturnValue (Object returnValue) throws IllegalAccessException {
+        // Nothing returned
+        if (returnValue == null) {
+            return returnValue;
+        }
+
+        // The result type needs to be post-processed as SCORE intercalls may change the type
+        Class<?> returnType = returnValue.getClass();
+
+        if ( // These native types don't need any modification
+            (returnType == BigInteger.class)
+        ||  (returnType == Address.class)
+        ||  (returnType == Boolean.class)
+        ||  (returnType == String.class)
+        ||  (returnType == byte[].class)
+        ) {
+            return returnValue;
+        }
+
+        // Convert Integer native classes to BigInteger
+        if (returnType == Integer.class) {
+            return BigInteger.valueOf((Integer) returnValue);
+        } else if (returnType == Long.class) {
+            return BigInteger.valueOf((Long) returnValue);
+        } else if (returnType == Short.class) {
+            return BigInteger.valueOf((Short) returnValue);
+        } else if (returnType == Character.class) {
+            return BigInteger.valueOf((Character) returnValue);
+        } else if (returnType == Byte.class) {
+            return BigInteger.valueOf((Byte) returnValue);
+        }
+
+        // The result is not a native SCORE type
+        // Is it an Array ?
+        if (returnType.isArray()) {
+            int arrayLength = Array.getLength(returnValue);
+            if (arrayLength == 0) {
+                return new Object[] {};
+            }
+
+            var firstItem = getReturnValue(Array.get(returnValue, 0));
+            Object[] returnArray = (Object[]) Array.newInstance(firstItem.getClass(), arrayLength);
+
+            for (int i = 0; i < Array.getLength(returnValue); i++) {
+                // Decide what to do with each array item, recursive call it
+                returnArray[i] = getReturnValue(Array.get(returnValue, i));
+            }
+            return returnArray;
+        }
+
+        // Only remaining possibility : it's a user class that needs to be converted to Map
+        Map<String, Object> returnMap = new HashMap<String, Object>();
+        for (var field : returnType.getFields()) {
+            // Decide what to do with field values, recursive call it
+            var fieldValue = getReturnValue(field.get(returnValue));
+            returnMap.put(field.getName(), fieldValue);
+        }
+        return returnMap;
+    }
+
     Object call(Account from, boolean readonly, BigInteger value, String method, Object... params) {
         sm.pushFrame(from, this.score, readonly, method, value);
         Class<?>[] paramClasses = new Class<?>[params.length];
@@ -87,7 +150,8 @@ public class Score extends TestBase {
         try {
             Class<?> clazz = instance.getClass();
             var m = clazz.getMethod(method, paramClasses);
-            return m.invoke(instance, params);
+            var result = m.invoke(instance, params);
+            return getReturnValue(result);
         } catch (NoSuchMethodException | IllegalAccessException e) {
             e.printStackTrace();
             throw new RuntimeException(e.getMessage());
