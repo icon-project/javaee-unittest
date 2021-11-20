@@ -115,13 +115,11 @@ public final class Context extends TestBase {
     }
 
     public static Object call(Address targetAddress, String method, Object... params) {
-        var caller = stackWalker.walk(Context::walkScore);
-        return sm.call(caller, BigInteger.ZERO, targetAddress, method, params);
+        return call(BigInteger.ZERO, targetAddress, method, params);
     }
 
     public static void transfer(Address targetAddress, BigInteger value) {
-        var caller = stackWalker.getCallerClass();
-        sm.call(caller, value, targetAddress, "fallback");
+        call(value, targetAddress, "fallback");
     }
 
     public static Address deploy(byte[] content, Object... params) {
