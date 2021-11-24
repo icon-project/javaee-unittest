@@ -90,9 +90,11 @@ public class Score extends TestBase {
             return m.invoke(instance, params);
         } catch (NoSuchMethodException | IllegalAccessException e) {
             e.printStackTrace();
+            sm.revertCurrentFrame();
             throw new RuntimeException(e.getMessage());
         } catch (InvocationTargetException e) {
             e.printStackTrace();
+            sm.revertCurrentFrame();
             throw new AssertionError(e.getTargetException().getMessage());
         } finally {
             sm.popFrame();
