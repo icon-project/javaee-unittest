@@ -33,8 +33,10 @@ public class ServiceManager {
     private final Map<Class<?>, Score> classScoreMap = new HashMap<>();
     private final Map<Address, Score> addressScoreMap = new HashMap<>();
     private final Map<String, Object> storageMap = new HashMap<>();
+    private final Map<Integer, Map<String, Object>> frameMemoryStorage = new HashMap<>();
     private final Map<String, Class<?>> storageClassMap = new HashMap<>();
     private int nextCount = 1;
+    private int frameDepth = 0;
 
     public Score deploy(Account owner, Class<?> mainClass, Object... params) throws Exception {
         getBlock().increase();
@@ -147,8 +149,40 @@ public class ServiceManager {
     }
 
     public void putStorage(String key, Object value, Class<?> clazz) {
-        storageMap.put(getAddress().toString() + key, value);
-        storageClassMap.put(getAddress().toString() + key, clazz);
+        var varKey = getAddress().toString() + key;
+
+        // Keep the old value in case of a revert
+        var curFrameMemory = frameMemoryStorage.get(getCurrentFrame().getDepth());
+        if (curFrameMemory == null) {
+            curFrameMemory = new HashMap<>();
+        }
+        if (curFrameMemory.get(varKey) == null) {
+            // Only write the old value in the storage memory if it's the first time we write in the current frame
+            curFrameMemory.put(varKey, getStorage(key));
+            frameMemoryStorage.put(getCurrentFrame().getDepth(), curFrameMemory);
+        }
+
+        // Do the actual DB writes
+        writeStorage(varKey, value, clazz);
+    }
+
+    private void writeStorage (String varKey, Object value, Class<?> clazz) {
+        storageMap.put(varKey, value);
+        storageClassMap.put(varKey, clazz);
+    }
+
+    public void revertCurrentFrame () {
+        var curFrameMemory = frameMemoryStorage.get(getCurrentFrame().getDepth());
+        
+        if (curFrameMemory == null) {
+            // Nothing have been written in the current frame
+            return;
+        }
+
+        for (var items : curFrameMemory.entrySet()) {
+            // Write back the old value to the DB - do not change the type
+            writeStorage(items.getKey(), items.getValue(), storageClassMap.get(items.getKey()));
+        }
     }
 
     public Object getStorage(String key) {
@@ -206,13 +240,15 @@ public class ServiceManager {
         String method;
         boolean readonly;
         BigInteger value;
+        int depth;
 
-        public Frame(Account from, Account to, boolean readonly, String method, BigInteger value) {
+        public Frame(Account from, Account to, boolean readonly, String method, BigInteger value, int depth) {
             this.from = from;
             this.to = to;
             this.readonly = readonly;
             this.method = method;
             this.value = value;
+            this.depth = depth;
         }
 
         public boolean isReadonly() {
@@ -222,14 +258,20 @@ public class ServiceManager {
         public BigInteger getValue() {
             return value;
         }
+
+        public Integer getDepth () {
+            return depth;
+        }
     }
 
-    protected void pushFrame(Account from, Account to, boolean readonly, String method, BigInteger value) {
-        contexts.push(new Frame(from, to, readonly, method, value));
+    public void pushFrame(Account from, Account to, boolean readonly, String method, BigInteger value) {
+        contexts.push(new Frame(from, to, readonly, method, value, frameDepth++));
     }
-
-    protected void popFrame() {
+    
+    public void popFrame() {
         contexts.pop();
+        frameDepth--;
+        frameMemoryStorage.put(frameDepth, null);
     }
 
     public Frame getCurrentFrame() {
