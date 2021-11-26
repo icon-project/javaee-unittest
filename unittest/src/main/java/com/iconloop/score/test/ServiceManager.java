@@ -21,7 +21,9 @@ import score.Address;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.math.BigInteger;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Stack;
@@ -33,10 +35,12 @@ public class ServiceManager {
     private final Map<Class<?>, Score> classScoreMap = new HashMap<>();
     private final Map<Address, Score> addressScoreMap = new HashMap<>();
     private final Map<String, Object> storageMap = new HashMap<>();
-    private final Map<Integer, Map<String, Object>> frameMemoryStorage = new HashMap<>();
+    private final Map<Long, Map<String, Object>> frameMemoryStorage = new HashMap<>();
+    private final Map<Long, List<Long>> frameTree = new HashMap<>();
     private final Map<String, Class<?>> storageClassMap = new HashMap<>();
     private int nextCount = 1;
-    private int frameDepth = 0;
+    private long frameId = -1;
+    private long frameParentId = -1;
 
     public Score deploy(Account owner, Class<?> mainClass, Object... params) throws Exception {
         getBlock().increase();
@@ -152,14 +156,14 @@ public class ServiceManager {
         var varKey = getAddress().toString() + key;
 
         // Keep the old value in case of a revert
-        var curFrameMemory = frameMemoryStorage.get(getCurrentFrame().getDepth());
+        var curFrameMemory = frameMemoryStorage.get(getCurrentFrame().getId());
         if (curFrameMemory == null) {
             curFrameMemory = new HashMap<>();
         }
         if (curFrameMemory.get(varKey) == null) {
             // Only write the old value in the storage memory if it's the first time we write in the current frame
             curFrameMemory.put(varKey, getStorage(key));
-            frameMemoryStorage.put(getCurrentFrame().getDepth(), curFrameMemory);
+            frameMemoryStorage.put(getCurrentFrame().getId(), curFrameMemory);
         }
 
         // Do the actual DB writes
@@ -171,17 +175,24 @@ public class ServiceManager {
         storageClassMap.put(varKey, clazz);
     }
 
-    public void revertCurrentFrame () {
-        var curFrameMemory = frameMemoryStorage.get(getCurrentFrame().getDepth());
+    public void revertFrame (long frameId) {
+        var curFrameMemory = frameMemoryStorage.get(frameId);
         
-        if (curFrameMemory == null) {
-            // Nothing have been written in the current frame
-            return;
+        // revert child frames
+        var childFrames = frameTree.get(frameId);
+        if (childFrames != null) {
+            for (var childFrame : childFrames) {
+                revertFrame(childFrame);
+            }
         }
 
-        for (var items : curFrameMemory.entrySet()) {
-            // Write back the old value to the DB - do not change the type
-            writeStorage(items.getKey(), items.getValue(), storageClassMap.get(items.getKey()));
+        // revert current frame
+        // Check if nothing have been written in the current frame
+        if (curFrameMemory != null) {
+            for (var items : curFrameMemory.entrySet()) {
+                // Write back the old value to the DB - do not change the type
+                writeStorage(items.getKey(), items.getValue(), storageClassMap.get(items.getKey()));
+            }
         }
     }
 
@@ -240,15 +251,17 @@ public class ServiceManager {
         String method;
         boolean readonly;
         BigInteger value;
-        int depth;
+        long id;
+        long parentId;
 
-        public Frame(Account from, Account to, boolean readonly, String method, BigInteger value, int depth) {
+        public Frame(Account from, Account to, boolean readonly, String method, BigInteger value, long id, long parentId) {
             this.from = from;
             this.to = to;
             this.readonly = readonly;
             this.method = method;
             this.value = value;
-            this.depth = depth;
+            this.id = id;
+            this.parentId = parentId;
         }
 
         public boolean isReadonly() {
@@ -259,19 +272,32 @@ public class ServiceManager {
             return value;
         }
 
-        public Integer getDepth () {
-            return depth;
+        public long getId () {
+            return id;
+        }
+
+        public long getParentId () {
+            return parentId;
         }
     }
 
     public void pushFrame(Account from, Account to, boolean readonly, String method, BigInteger value) {
-        contexts.push(new Frame(from, to, readonly, method, value, frameDepth++));
+        frameId++; // Generate new frame ID for current frame
+
+        contexts.push(new Frame(from, to, readonly, method, value, frameId, frameParentId));
+        var childsId = frameTree.get(frameParentId);
+        if (childsId == null) {
+            childsId = new ArrayList<>();
+            frameTree.put(frameParentId, childsId);
+        }
+        childsId.add(frameId);
+
+        frameParentId = frameId;
     }
-    
+
     public void popFrame() {
+        frameParentId = getCurrentFrame().getParentId();
         contexts.pop();
-        frameDepth--;
-        frameMemoryStorage.put(frameDepth, null);
     }
 
     public Frame getCurrentFrame() {
