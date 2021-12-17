@@ -95,7 +95,7 @@ public final class Context extends TestBase {
 
     public static<T> T call(Class<T> cls,
                             Address targetAddress, String method, Object... params) {
-        return null;
+        return cls.cast(call(targetAddress, method, params));
     }
 
     public static Object call(Address targetAddress, String method, Object... params) {
