@@ -20,9 +20,11 @@ import score.annotation.External;
 
 public class HelloWorld {
     private final String name;
+    private final Address echoAddress;
 
-    public HelloWorld(String name) {
+    public HelloWorld(String name, Address echoAddress) {
         this.name = name;
+        this.echoAddress = echoAddress;
     }
 
     @External(readonly=true)
@@ -51,5 +53,15 @@ public class HelloWorld {
             return Context.hash(algorithm, data);
         }
         return null;
+    }
+
+    @External(readonly=true)
+    public String castedEcho(String message) {
+        return (String) Context.call(echoAddress, "echo", message);
+    }
+
+    @External(readonly=true)
+    public String typedEcho(String message) {
+        return Context.call(String.class, echoAddress, "echo", message);
     }
 }

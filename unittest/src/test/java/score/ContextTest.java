@@ -30,11 +30,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class ContextTest extends TestBase {
     private static final ServiceManager sm = getServiceManager();
     private static final Account owner = sm.createAccount();
+    private static Score echoScore;
     private static Score helloScore;
 
     @BeforeEach
     void setUp() throws Exception {
-        helloScore = sm.deploy(owner, HelloWorld.class, "Alice");
+        echoScore = sm.deploy(owner, Echo.class);
+        helloScore = sm.deploy(owner, HelloWorld.class, "Alice", echoScore.getAddress());
     }
 
     @Test
@@ -60,5 +62,17 @@ class ContextTest extends TestBase {
         byte[] data = "Hello world".getBytes();
         assertArrayEquals(Crypto.hash("sha3-256", data),
                 (byte[]) helloScore.call("computeHash", "sha3-256", data));
+    }
+
+    @Test
+    void callCasted() {
+       String echoMessage = "test";
+       assertEquals(echoMessage, helloScore.call("castedEcho", echoMessage));
+    }
+
+    @Test
+    void callTyped() {
+        String echoMessage = "test";
+       assertEquals(echoMessage, helloScore.call("typedEcho", echoMessage));
     }
 }
