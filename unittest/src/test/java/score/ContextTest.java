@@ -30,12 +30,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class ContextTest extends TestBase {
     private static final ServiceManager sm = getServiceManager();
     private static final Account owner = sm.createAccount();
-    private static Score echoScore;
     private static Score helloScore;
 
     @BeforeEach
     void setUp() throws Exception {
-        echoScore = sm.deploy(owner, Echo.class);
+        Score echoScore = sm.deploy(owner, Echo.class);
         helloScore = sm.deploy(owner, HelloWorld.class, "Alice", echoScore.getAddress());
     }
 
