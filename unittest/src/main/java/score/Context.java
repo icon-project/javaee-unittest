@@ -119,11 +119,11 @@ public final class Context extends TestBase {
     }
 
     public static void revert(int code, String message) {
-        throw new AssertionError(String.format("Reverted(%d): %s", code, message));
+        throw new UserRevertedException(code, String.format("Reverted(%d): %s", code, message));
     }
 
     public static void revert(int code) {
-        throw new AssertionError(String.format("Reverted(%d)", code));
+        throw new UserRevertedException(code, String.format("Reverted(%d)", code));
     }
 
     public static void revert(String message) {
@@ -136,13 +136,13 @@ public final class Context extends TestBase {
 
     public static void require(boolean condition) {
         if (!condition) {
-            throw new AssertionError();
+            revert();
         }
     }
 
     public static void require(boolean condition, String message) {
         if (!condition) {
-            throw new AssertionError(message);
+            revert(message);
         }
     }
 

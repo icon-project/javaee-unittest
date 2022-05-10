@@ -17,6 +17,7 @@
 package com.iconloop.score.test;
 
 import score.Address;
+import score.UserRevertedException;
 
 import java.lang.reflect.InvocationTargetException;
 import java.math.BigInteger;
@@ -93,6 +94,9 @@ public class Score extends TestBase {
             throw new RuntimeException(e.getMessage());
         } catch (InvocationTargetException e) {
             e.printStackTrace();
+            if (e.getCause() instanceof UserRevertedException) {
+                throw (UserRevertedException) e.getCause();
+            }
             throw new AssertionError(e.getTargetException().getMessage());
         } finally {
             sm.popFrame();
