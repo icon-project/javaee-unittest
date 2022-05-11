@@ -49,10 +49,7 @@ public class HelloWorld {
 
     @External(readonly=true)
     public byte[] computeHash(String algorithm, byte[] data) {
-        if ("sha3-256".equals(algorithm)) {
-            return Context.hash(algorithm, data);
-        }
-        return null;
+        return Context.hash(algorithm, data);
     }
 
     @External(readonly=true)

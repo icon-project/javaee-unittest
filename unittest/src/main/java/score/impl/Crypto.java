@@ -20,6 +20,7 @@ import org.bouncycastle.asn1.x9.X9ECParameters;
 import org.bouncycastle.asn1.x9.X9IntegerConverter;
 import org.bouncycastle.crypto.ec.CustomNamedCurves;
 import org.bouncycastle.crypto.params.ECDomainParameters;
+import org.bouncycastle.jcajce.provider.digest.Keccak;
 import org.bouncycastle.math.ec.ECAlgorithms;
 import org.bouncycastle.math.ec.ECPoint;
 import org.bouncycastle.math.ec.custom.sec.SecP256K1Curve;
@@ -50,6 +51,12 @@ public class Crypto {
         }
     }
 
+    public static byte[] keccack256(byte[] msg) {
+        Keccak.DigestKeccak keccak = new Keccak.Digest256();
+        keccak.update(msg);
+        return keccak.digest();
+    }
+
     static void require(boolean cond, String msg) {
         if (!cond) {
             throw new IllegalArgumentException(msg);
@@ -62,6 +69,8 @@ public class Crypto {
                 return sha256(msg);
             case "sha3-256":
                 return sha3_256(msg);
+            case "keccak-256":
+                return keccack256(msg);
         }
         throw new IllegalArgumentException("Unsupported algorithm " + alg);
     }

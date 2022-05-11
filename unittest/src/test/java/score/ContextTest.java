@@ -58,9 +58,12 @@ class ContextTest extends TestBase {
 
     @Test
     void hash() {
+        String[] algorithms = new String[]{"sha3-256", "keccak-256"};
         byte[] data = "Hello world".getBytes();
-        assertArrayEquals(Crypto.hash("sha3-256", data),
-                (byte[]) helloScore.call("computeHash", "sha3-256", data));
+        for (String algo : algorithms) {
+            assertArrayEquals(Crypto.hash(algo, data),
+                    (byte[]) helloScore.call("computeHash", algo, data));
+        }
     }
 
     @Test
