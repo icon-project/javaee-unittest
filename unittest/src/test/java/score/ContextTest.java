@@ -20,7 +20,7 @@ import com.iconloop.score.test.Account;
 import com.iconloop.score.test.Score;
 import com.iconloop.score.test.ServiceManager;
 import com.iconloop.score.test.TestBase;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import score.impl.Crypto;
 
@@ -32,10 +32,9 @@ class ContextTest extends TestBase {
     private static final Account owner = sm.createAccount();
     private static Score helloScore;
 
-    @BeforeEach
-    void setUp() throws Exception {
-        Score echoScore = sm.deploy(owner, Echo.class);
-        helloScore = sm.deploy(owner, HelloWorld.class, "Alice", echoScore.getAddress());
+    @BeforeAll
+    static void setUp() throws Exception {
+        helloScore = sm.deploy(owner, HelloWorld.class, "Alice");
     }
 
     @Test
@@ -64,17 +63,5 @@ class ContextTest extends TestBase {
             assertArrayEquals(Crypto.hash(algo, data),
                     (byte[]) helloScore.call("computeHash", algo, data));
         }
-    }
-
-    @Test
-    void callCasted() {
-       String echoMessage = "test";
-       assertEquals(echoMessage, helloScore.call("castedEcho", echoMessage));
-    }
-
-    @Test
-    void callTyped() {
-        String echoMessage = "test";
-       assertEquals(echoMessage, helloScore.call("typedEcho", echoMessage));
     }
 }
