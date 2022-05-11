@@ -23,6 +23,7 @@ import org.junit.jupiter.api.Test;
 import score.annotation.External;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class ExceptionTest extends TestBase {
     private static final ServiceManager sm = getServiceManager();
@@ -52,7 +53,11 @@ public class ExceptionTest extends TestBase {
     @Test
     void testUserRevert() throws Exception {
         var callee = sm.deploy(owner, Callee.class);
+        assertThrows(AssertionError.class, () ->
+                callee.invoke(owner, "expectRevert"));
+
         var caller = sm.deploy(owner, Caller.class);
-        assertDoesNotThrow(() -> caller.invoke(owner, "invoke", callee.getAddress()));
+        assertDoesNotThrow(() ->
+                caller.invoke(owner, "invoke", callee.getAddress()));
     }
 }

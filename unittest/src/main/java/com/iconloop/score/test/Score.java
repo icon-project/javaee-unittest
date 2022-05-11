@@ -94,10 +94,12 @@ public class Score extends TestBase {
             throw new RuntimeException(e.getMessage());
         } catch (InvocationTargetException e) {
             e.printStackTrace();
-            if (e.getCause() instanceof UserRevertedException) {
-                throw (UserRevertedException) e.getCause();
+            var target = e.getCause();
+            if (target instanceof UserRevertedException
+                    && sm.getCurrentFrame() != sm.getFirstFrame()) {
+                throw (UserRevertedException) target;
             }
-            throw new AssertionError(e.getTargetException().getMessage());
+            throw new AssertionError(target.getMessage());
         } finally {
             sm.popFrame();
         }
