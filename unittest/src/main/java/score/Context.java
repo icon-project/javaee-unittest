@@ -24,7 +24,10 @@ import score.impl.Crypto;
 import score.impl.RLPObjectReader;
 import score.impl.RLPObjectWriter;
 
+import java.lang.StackWalker.StackFrame;
 import java.math.BigInteger;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public final class Context extends TestBase {
     private static final ServiceManager sm = getServiceManager();
@@ -87,10 +90,23 @@ public final class Context extends TestBase {
         var caller = stackWalker.getCallerClass();
         return cls.cast(sm.call(caller, value, targetAddress, method, params));
     }
+    
+    public static Class<?> walkScore(Stream<StackFrame> stackFrameStream) {
+        // skip(1) because it's always "Context.call"
+        for (var stackFrame : stackFrameStream.skip(1).collect(Collectors.toList())) {
+            try {
+                sm.getScoreFromClass(stackFrame.getDeclaringClass());
+                return stackFrame.getDeclaringClass();
+            } catch (IllegalStateException e) {
+                // pass
+            }
+        }
 
-    public static Object call(BigInteger value,
-                              Address targetAddress, String method, Object... params) {
-        var caller = stackWalker.getCallerClass();
+        return null;
+    }
+
+    public static Object call(BigInteger value, Address targetAddress, String method, Object... params) {
+        var caller = stackWalker.walk(Context::walkScore);
         return sm.call(caller, value, targetAddress, method, params);
     }
 
@@ -101,13 +117,11 @@ public final class Context extends TestBase {
     }
 
     public static Object call(Address targetAddress, String method, Object... params) {
-        var caller = stackWalker.getCallerClass();
-        return sm.call(caller, BigInteger.ZERO, targetAddress, method, params);
+        return call(BigInteger.ZERO, targetAddress, method, params);
     }
 
     public static void transfer(Address targetAddress, BigInteger value) {
-        var caller = stackWalker.getCallerClass();
-        sm.call(caller, value, targetAddress, "fallback");
+        call(value, targetAddress, "fallback");
     }
 
     public static Address deploy(byte[] content, Object... params) {
