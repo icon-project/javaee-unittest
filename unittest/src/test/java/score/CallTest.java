@@ -23,6 +23,9 @@ import com.iconloop.score.test.TestBase;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import score.annotation.External;
+import scorex.util.ArrayList;
+
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -38,6 +41,11 @@ public class CallTest extends TestBase {
         }
 
         @External(readonly=true)
+        public String echoFirst(String[] messages) {
+            return messages[0];
+        }
+
+        @External(readonly=true)
         public String castedEcho(String message) {
             return (String) Context.call(Context.getAddress(), "echo", message);
         }
@@ -45,6 +53,21 @@ public class CallTest extends TestBase {
         @External(readonly=true)
         public String typedEcho(String message) {
             return Context.call(String.class, Context.getAddress(), "echo", message);
+        }
+
+        @External(readonly=true)
+        public String listEcho() {
+            List<String> list = List.of("test1", "test2", "test3");
+            return Context.call(String.class, Context.getAddress(), "echoFirst", list);
+        }
+
+        @External(readonly=true)
+        public String arrayListEcho() {
+            List<String> list = new ArrayList<>();
+            list.add("test1");
+            list.add("test2");
+            list.add("test3");
+            return Context.call(String.class, Context.getAddress(), "echoFirst", list);
         }
     }
 
@@ -63,5 +86,12 @@ public class CallTest extends TestBase {
     void callTyped() {
         String echoMessage = "test";
         assertEquals(echoMessage, echoScore.call("typedEcho", echoMessage));
+    }
+
+    @Test
+    void parameterConversions_array() {
+        String echoMessage = "test1";
+        assertEquals(echoMessage, echoScore.call("listEcho"));
+        assertEquals(echoMessage, echoScore.call("arrayListEcho"));
     }
 }

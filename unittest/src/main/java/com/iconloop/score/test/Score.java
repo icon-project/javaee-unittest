@@ -19,8 +19,12 @@ package com.iconloop.score.test;
 import score.Address;
 import score.UserRevertedException;
 
+import java.lang.reflect.Array;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.math.BigInteger;
+import java.util.Arrays;
+import java.util.List;
 
 public class Score extends TestBase {
     private static final ServiceManager sm = getServiceManager();
@@ -63,32 +67,13 @@ public class Score extends TestBase {
         call(from, false, BigInteger.ZERO, method, params);
     }
 
-    Object call(Account from, boolean readonly, BigInteger value, String method, Object... params) {
-        sm.pushFrame(from, this.score, readonly, method, value);
-        Class<?>[] paramClasses = new Class<?>[params.length];
-        for (int i = 0; i < params.length; i++) {
-            Class<?> type = params[i].getClass();
-            // Convert supported object types to primitive data types
-            if (type == Integer.class) {
-                paramClasses[i] = Integer.TYPE; // int
-            } else if (type == Long.class) {
-                paramClasses[i] = Long.TYPE; // long
-            } else if (type == Short.class) {
-                paramClasses[i] = Short.TYPE; // short
-            } else if (type == Character.class) {
-                paramClasses[i] = Character.TYPE; // char
-            } else if (type == Byte.class) {
-                paramClasses[i] = Byte.TYPE; // byte
-            } else if (type == Boolean.class) {
-                paramClasses[i] = Boolean.TYPE; // boolean
-            } else {
-                paramClasses[i] = type;
-            }
-        }
+    Object call(Account from, boolean readonly, BigInteger value, String methodName, Object... params) {
+        sm.pushFrame(from, this.score, readonly, methodName, value);
         try {
-            Class<?> clazz = instance.getClass();
-            var m = clazz.getMethod(method, paramClasses);
-            return m.invoke(instance, params);
+            Method method = getMethodByName(methodName);
+            Object[] methodParameters = convertParameters(method, params);
+
+            return method.invoke(instance, methodParameters);
         } catch (NoSuchMethodException | IllegalAccessException e) {
             e.printStackTrace();
             throw new RuntimeException(e.getMessage());
@@ -103,5 +88,50 @@ public class Score extends TestBase {
         } finally {
             sm.popFrame();
         }
+    }
+
+    private Object[] convertParameters(Method method, Object[] params) {
+        Class<?>[] parameterTypes = method.getParameterTypes();
+        int numberOfParams = parameterTypes.length;
+        Object[] parsedParams = Arrays.copyOf(params, numberOfParams);
+
+        int i = 0;
+        for (Class<?> parameterClass : parameterTypes) {
+            Object param = parsedParams[i];
+            if (parameterClass.isArray() && !param.getClass().isArray()) {
+                parsedParams[i] = convertToArray(param);
+            }
+
+            i++;
+        }
+
+        return parsedParams;
+    }
+
+    private Method getMethodByName(String name) throws NoSuchMethodException {
+        Class<?> clazz = instance.getClass();
+        Method[] m = clazz.getMethods();
+        for (Method method : m) {
+            if (method.getName().equals(name)) {
+                return method;
+            }
+        }
+
+        throw new NoSuchMethodException();
+    }
+
+    private Object convertToArray(Object param) {
+        List<?> list = (List<?>) param;
+        if (list.size() == 0) {
+            return param;
+        }
+
+        Class<?> listType = list.get(0).getClass();
+        Object[] arr = (Object[]) Array.newInstance(listType, list.size());
+        for (int j = 0; j < list.size(); j++) {
+            arr[j] = list.get(j);
+        }
+
+        return arr;
     }
 }

@@ -12,6 +12,7 @@ java {
 dependencies {
     compileOnly 'org.bouncycastle:bcprov-jdk15on:1.70'
 
+    testImplementation "foundation.icon:javaee-scorex:0.5.2"
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.9.0'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.9.0'
     testRuntimeOnly 'org.bouncycastle:bcprov-jdk15on:1.70'
