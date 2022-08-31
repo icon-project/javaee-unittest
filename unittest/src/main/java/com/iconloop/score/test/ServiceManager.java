@@ -30,7 +30,6 @@ public class ServiceManager {
     private static final BigInteger ICX = BigInteger.TEN.pow(18);
 
     private final Stack<Frame> contexts = new Stack<>();
-    private final Map<Class<?>, Score> classScoreMap = new HashMap<>();
     private final Map<Address, Score> addressScoreMap = new HashMap<>();
     private final Map<String, Object> storageMap = new HashMap<>();
     private final Map<String, Class<?>> storageClassMap = new HashMap<>();
@@ -39,7 +38,6 @@ public class ServiceManager {
     public Score deploy(Account owner, Class<?> mainClass, Object... params) throws Exception {
         getBlock().increase();
         var score = new Score(Account.newScoreAccount(nextCount++), owner);
-        classScoreMap.put(mainClass, score);
         addressScoreMap.put(score.getAddress(), score);
         pushFrame(owner, score.getAccount(), false, "<init>", BigInteger.ZERO);
         try {
@@ -85,23 +83,6 @@ public class ServiceManager {
         return getCurrentFrame().to.getAddress();
     }
 
-    private Score getScoreFromClass(Class<?> caller) {
-        var score = classScoreMap.get(caller);
-        if (score == null) {
-            for (Class<?> clazz: classScoreMap.keySet()) {
-                var superclass = clazz.getSuperclass();
-                while (!"java.lang.Object".equals(superclass.getName())) {
-                    if (superclass.equals(caller)) {
-                        return classScoreMap.get(clazz);
-                    }
-                    superclass = superclass.getSuperclass();
-                }
-            }
-            throw new IllegalStateException(caller.getName() + " not found");
-        }
-        return score;
-    }
-
     private Score getScoreFromAddress(Address target) {
         var score = addressScoreMap.get(target);
         if (score == null) {
@@ -115,8 +96,8 @@ public class ServiceManager {
         return score.call(from, false, value, method, params);
     }
 
-    public Object call(Class<?> caller, BigInteger value, Address targetAddress, String method, Object... params) {
-        Score from = getScoreFromClass(caller);
+    public Object call(BigInteger value, Address targetAddress, String method, Object... params) {
+        Score from = getScoreFromAddress(getAddress());
         if ("fallback".equals(method) || "".equals(method)) {
             transfer(from.getAccount(), targetAddress, value);
             return null;

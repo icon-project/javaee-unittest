@@ -28,8 +28,6 @@ import java.math.BigInteger;
 
 public final class Context extends TestBase {
     private static final ServiceManager sm = getServiceManager();
-    private static final StackWalker stackWalker =
-            StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE);
 
     private Context() {
     }
@@ -84,30 +82,25 @@ public final class Context extends TestBase {
 
     public static<T> T call(Class<T> cls, BigInteger value,
                             Address targetAddress, String method, Object... params) {
-        var caller = stackWalker.getCallerClass();
-        return cls.cast(sm.call(caller, value, targetAddress, method, params));
+        return cls.cast(sm.call(value, targetAddress, method, params));
     }
 
     public static Object call(BigInteger value,
                               Address targetAddress, String method, Object... params) {
-        var caller = stackWalker.getCallerClass();
-        return sm.call(caller, value, targetAddress, method, params);
+        return sm.call(value, targetAddress, method, params);
     }
 
     public static<T> T call(Class<T> cls,
                             Address targetAddress, String method, Object... params) {
-        var caller = stackWalker.getCallerClass();
-        return cls.cast(sm.call(caller, BigInteger.ZERO, targetAddress, method, params));
+        return cls.cast(sm.call(BigInteger.ZERO, targetAddress, method, params));
     }
 
     public static Object call(Address targetAddress, String method, Object... params) {
-        var caller = stackWalker.getCallerClass();
-        return sm.call(caller, BigInteger.ZERO, targetAddress, method, params);
+        return sm.call(BigInteger.ZERO, targetAddress, method, params);
     }
 
     public static void transfer(Address targetAddress, BigInteger value) {
-        var caller = stackWalker.getCallerClass();
-        sm.call(caller, value, targetAddress, "fallback");
+        sm.call(value, targetAddress, "fallback");
     }
 
     public static Address deploy(byte[] content, Object... params) {
