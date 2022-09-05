@@ -17,11 +17,13 @@
 package com.iconloop.score.test;
 
 import score.Address;
+import score.annotation.Optional;
 import score.UserRevertedException;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
 import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.List;
@@ -91,15 +93,19 @@ public class Score extends TestBase {
     }
 
     private Object[] convertParameters(Method method, Object[] params) {
-        Class<?>[] parameterTypes = method.getParameterTypes();
-        int numberOfParams = parameterTypes.length;
+        Parameter[] parameters = method.getParameters();
+        int numberOfParams = parameters.length;
         Object[] parsedParams = Arrays.copyOf(params, numberOfParams);
 
         int i = 0;
-        for (Class<?> parameterClass : parameterTypes) {
-            Object param = parsedParams[i];
-            if (parameterClass.isArray() && !param.getClass().isArray()) {
-                parsedParams[i] = convertToArray(param);
+        for (Parameter methodParameter : parameters) {
+            Object parsedParameter = parsedParams[i];
+            Class<?> parameterClass = methodParameter.getType();
+
+            if (parsedParameter == null && isOptional(methodParameter)) {
+                parsedParams[i] = getDefault(parameterClass);
+            } else if (parameterClass.isArray() && !parsedParameter.getClass().isArray()) {
+                parsedParams[i] = convertToArray(parsedParameter);
             }
 
             i++;
@@ -133,5 +139,29 @@ public class Score extends TestBase {
         }
 
         return arr;
+    }
+
+    private Object getDefault(Class<?> type) {
+        if (type == Integer.TYPE) {
+            return Integer.valueOf("0");
+        } else if (type == Long.TYPE) {
+            return Long.valueOf("0");
+        } else if (type == Short.TYPE) {
+            return Short.valueOf("0");
+        } else if (type == Character.TYPE) {
+            return Character.MIN_VALUE;
+        } else if (type == Byte.TYPE) {
+            return Byte.valueOf("0");
+        } else if (type == Boolean.TYPE) {
+            return Boolean.FALSE;
+        } else if (type == BigInteger.class) {
+            return BigInteger.ZERO;
+        } else {
+            return null;
+        }
+    }
+
+    private boolean isOptional(Parameter parameter) {
+        return parameter.getAnnotation(Optional.class) != null;
     }
 }
