@@ -30,6 +30,7 @@ import java.math.BigInteger;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class CallTest extends TestBase {
     private static final ServiceManager sm = getServiceManager();
@@ -37,6 +38,10 @@ public class CallTest extends TestBase {
     private static Score echoScore;
 
     public static class Echo {
+        public int nonExternal() {
+            return 0;
+        }
+
         @External(readonly=true)
         public String echo(@Optional String message) {
             return message;
@@ -111,6 +116,12 @@ public class CallTest extends TestBase {
     @BeforeAll
     static void setUp() throws Exception {
         echoScore = sm.deploy(owner, Echo.class);
+    }
+
+    @Test
+    void callNonExternal() {
+        assertThrows(RuntimeException.class, () ->
+                echoScore.call("nonExternal"));
     }
 
     @Test
