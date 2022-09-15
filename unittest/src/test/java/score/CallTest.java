@@ -30,7 +30,6 @@ import java.math.BigInteger;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class CallTest extends TestBase {
@@ -46,16 +45,6 @@ public class CallTest extends TestBase {
         @External(readonly=true)
         public String echo(@Optional String message) {
             return message;
-        }
-
-        @External(readonly=true)
-        public Address echoAddress(@Optional Address _addr) {
-            return _addr;
-        }
-
-        @External(readonly=true)
-        public byte[] echoByteArray(@Optional byte[] _data) {
-            return _data;
         }
 
         @External(readonly=true)
@@ -156,15 +145,12 @@ public class CallTest extends TestBase {
 
     @Test
     void parameterConversions_Optional() {
-        assertNull(echoScore.call("echo"));
-        assertNull(echoScore.call("echoAddress"));
-        assertNull(echoScore.call("echoByteArray"));
-        assertEquals(BigInteger.ZERO, echoScore.call("echoBigInteger"));
-        assertEquals(BigInteger.ONE, echoScore.call("echoBigInteger", BigInteger.ONE));
-
-        assertEquals(0, echoScore.call("echoInteger"));
+        assertEquals(null, echoScore.call("echo"));
+        assertEquals(BigInteger.ZERO, echoScore.call( "echoBigInteger"));
+        assertEquals(0, echoScore.call( "echoInteger"));
         assertEquals(Short.valueOf("0"), echoScore.call("echoShort"));
         assertEquals(Long.valueOf("0"), echoScore.call("echoLong"));
+
         assertEquals(Character.MIN_VALUE, echoScore.call("echoChar"));
         assertEquals(Byte.valueOf("0"), echoScore.call("echoByte"));
         assertEquals(Boolean.FALSE, echoScore.call("echoBoolean"));
