@@ -23,10 +23,8 @@ import com.iconloop.score.test.TestBase;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import score.annotation.External;
-import score.annotation.Optional;
 import scorex.util.ArrayList;
 
-import java.math.BigInteger;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -38,43 +36,8 @@ public class CallTest extends TestBase {
 
     public static class Echo {
         @External(readonly=true)
-        public String echo(@Optional String message) {
+        public String echo(String message) {
             return message;
-        }
-
-        @External(readonly=true)
-        public boolean echoBoolean(@Optional boolean bool) {
-            return bool;
-        }
-
-        @External(readonly=true)
-        public byte echoByte(@Optional byte _byte) {
-            return _byte;
-        }
-
-        @External(readonly=true)
-        public char echoChar(@Optional char _char) {
-            return _char;
-        }
-
-        @External(readonly=true)
-        public BigInteger echoBigInteger(@Optional BigInteger bigInteger) {
-            return bigInteger;
-        }
-
-        @External(readonly=true)
-        public int echoInteger(@Optional int _int) {
-            return _int;
-        }
-
-        @External(readonly=true)
-        public long echoLong(@Optional long _long) {
-            return _long;
-        }
-
-        @External(readonly=true)
-        public short echoShort(@Optional short _short) {
-            return _short;
         }
 
         @External(readonly=true)
@@ -130,18 +93,5 @@ public class CallTest extends TestBase {
         String echoMessage = "test1";
         assertEquals(echoMessage, echoScore.call("listEcho"));
         assertEquals(echoMessage, echoScore.call("arrayListEcho"));
-    }
-
-    @Test
-    void parameterConversions_Optional() {
-        assertEquals(null, echoScore.call("echo"));
-        assertEquals(BigInteger.ZERO, echoScore.call( "echoBigInteger"));
-        assertEquals(0, echoScore.call( "echoInteger"));
-        assertEquals(Short.valueOf("0"), echoScore.call("echoShort"));
-        assertEquals(Long.valueOf("0"), echoScore.call("echoLong"));
-
-        assertEquals(Character.MIN_VALUE, echoScore.call("echoChar"));
-        assertEquals(Byte.valueOf("0"), echoScore.call("echoByte"));
-        assertEquals(Boolean.FALSE, echoScore.call("echoBoolean"));
     }
 }
