@@ -17,7 +17,6 @@
 package com.iconloop.score.test;
 
 import score.Address;
-import score.annotation.External;
 import score.annotation.Optional;
 import score.UserRevertedException;
 
@@ -117,12 +116,13 @@ public class Score extends TestBase {
 
     private Method getMethodByName(String name) throws NoSuchMethodException {
         Class<?> clazz = instance.getClass();
-        Method[] methods = clazz.getMethods();
-        for (Method m : methods) {
-            if (m.getName().equals(name) && isExternal(m)) {
-                return m;
+        Method[] m = clazz.getMethods();
+        for (Method method : m) {
+            if (method.getName().equals(name)) {
+                return method;
             }
         }
+
         throw new NoSuchMethodException();
     }
 
@@ -159,10 +159,6 @@ public class Score extends TestBase {
         } else {
             return null;
         }
-    }
-
-    private boolean isExternal(Method method) {
-        return method.getAnnotation(External.class) != null;
     }
 
     private boolean isOptional(Parameter parameter) {
