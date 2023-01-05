@@ -18,15 +18,12 @@ package score.impl;
 
 import com.iconloop.score.test.ServiceManager;
 import com.iconloop.score.test.TestBase;
-import score.Address;
 import score.ByteArrayObjectWriter;
 import score.Context;
 import score.ObjectReader;
 import score.ObjectWriter;
 
 import java.lang.reflect.InvocationTargetException;
-import java.math.BigInteger;
-import java.nio.charset.StandardCharsets;
 
 public class AnyDBImpl extends TestBase implements AnyDB {
     private static final ServiceManager sm = getServiceManager();
@@ -45,28 +42,24 @@ public class AnyDBImpl extends TestBase implements AnyDB {
     }
 
     private String getSubId(Object key) {
-        return this.prefix + encodeKey(key);
+        if (key == null) {
+            throw new IllegalArgumentException("null key was supplied");
+        }
+        var kv = TypeConverter.toBytes(key);
+        var sb = new StringBuilder();
+        sb.append(this.prefix);
+        sb.append("|");
+        sb.append(org.bouncycastle.util.encoders.Hex.toHexString(kv));
+        return sb.toString();
     }
 
-    private String encodeKey(Object v) {
-        if (v == null) {
-            return "";
-        } else if (v instanceof String) {
-            return (String) v;
-        } else if (v instanceof byte[]) {
-            return new String((byte[]) v, StandardCharsets.UTF_8);
-        } else if (v instanceof Integer) {
-            return BigInteger.valueOf((Integer) v).toString(16);
-        } else if (v instanceof BigInteger) {
-            return ((BigInteger) v).toString(16);
-        } else if (v instanceof Address) {
-            return v.toString();
-        }
-        throw new IllegalArgumentException("Unsupported type: " + v.getClass());
-    }
 
     private String getStorageKey(Object k, Type type) {
         return type.name() + getSubId(k);
+    }
+
+    private String getStorageKey(Type type) {
+        return type.name() + this.prefix;
     }
 
     private void setValue(String key, Object value) {
@@ -145,7 +138,7 @@ public class AnyDBImpl extends TestBase implements AnyDB {
         }
         int size = size();
         setValue(getStorageKey(size, Type.ArrayDB), value);
-        setValue(getStorageKey(null, Type.ArrayDB), size + 1);
+        setValue(getStorageKey(Type.ArrayDB), size + 1);
     }
 
     @Override
@@ -176,7 +169,7 @@ public class AnyDBImpl extends TestBase implements AnyDB {
 
     @Override
     public int size() {
-        var v = getValue(getStorageKey(null, Type.ArrayDB));
+        var v = getValue(getStorageKey(Type.ArrayDB));
         if (v == null) return 0;
         return (int) v;
     }
@@ -192,7 +185,7 @@ public class AnyDBImpl extends TestBase implements AnyDB {
         }
         var v = getValue(getStorageKey(size - 1, Type.ArrayDB));
         setValue(getStorageKey(size - 1, Type.ArrayDB), null);
-        setValue(getStorageKey(null, Type.ArrayDB), size - 1);
+        setValue(getStorageKey(Type.ArrayDB), size - 1);
         return v;
     }
 
@@ -202,17 +195,17 @@ public class AnyDBImpl extends TestBase implements AnyDB {
         if (sm.getCurrentFrame().isReadonly()) {
             throw new IllegalStateException("read-only context");
         }
-        setValue(getStorageKey(null, Type.VarDB), value);
+        setValue(getStorageKey(Type.VarDB), value);
     }
 
     @Override
     public Object get() {
-        return getValue(getStorageKey(null, Type.VarDB));
+        return getValue(getStorageKey(Type.VarDB));
     }
 
     @Override
     public Object getOrDefault(Object defaultValue) {
-        var v = getValue(getStorageKey(null, Type.VarDB));
+        var v = getValue(getStorageKey(Type.VarDB));
         return (v != null) ? v : defaultValue;
     }
 }
