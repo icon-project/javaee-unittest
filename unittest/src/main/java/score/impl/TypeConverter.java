@@ -251,7 +251,7 @@ public class TypeConverter {
 
     public static byte[] toBytes(Object v) {
         if (v == null) {
-            throw new IllegalArgumentException("null for key");
+            return null;
         } else if (v instanceof String) {
             return ((String)v).getBytes(StandardCharsets.UTF_8);
         } else if (v instanceof byte[]) {
@@ -285,15 +285,12 @@ public class TypeConverter {
     }
 
     private static Object fromBytesReal(Class<?> cls, byte[] bs) {
-        if (bs==null) {
+        if (bs == null) {
             return null;
         }
         if (cls == byte[].class) {
             return Arrays.copyOf(bs, bs.length);
         } else if (cls == Boolean.class) {
-            if (bs.length==0) {
-                return Boolean.FALSE;
-            }
             if (bs.length != 1) {
                 throw new IllegalArgumentException("invalid length for boolean len=" + bs.length);
             }

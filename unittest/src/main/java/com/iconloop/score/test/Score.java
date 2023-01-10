@@ -70,16 +70,13 @@ public class Score extends TestBase {
         call(from, false, value, method, params);
     }
 
-    Object call(Account from, boolean readonly, BigInteger value, String methodName, Object... params) {
-        if (value.signum()<0) {
-            throw new IllegalArgumentException("value is negative");
-        }
-        sm.pushFrame(from, this.score, readonly, methodName, value);
+    Object invokeMethod(String methodName, Object... params) {
         try {
             Method method = getMethodByName(methodName);
             Object[] methodParameters = convertParameters(method, params);
 
-            return method.invoke(instance, methodParameters);
+            var result = method.invoke(instance, methodParameters);
+            return result;
         } catch (NoSuchMethodException | IllegalAccessException e) {
             throw new RuntimeException(e.getMessage());
         } catch (InvocationTargetException e) {
@@ -89,9 +86,11 @@ public class Score extends TestBase {
                 throw (UserRevertedException) target;
             }
             throw new AssertionError(target.getMessage());
-        } finally {
-            sm.popFrame();
         }
+    }
+
+    Object call(Account from, boolean readonly, BigInteger value, String methodName, Object... params) {
+        return sm.call(from, value, true, readonly, this.score.getAddress(), methodName, params);
     }
 
     private Object[] convertParameters(Method method, Object[] params) {

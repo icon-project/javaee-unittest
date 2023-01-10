@@ -17,29 +17,43 @@
 package com.iconloop.score.test;
 
 import score.Address;
+import score.RevertedException;
+import score.impl.TypeConverter;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.math.BigInteger;
-import java.util.HashMap;
-import java.util.Map;
+import java.net.URLClassLoader;
 import java.util.Random;
 import java.util.Stack;
+import java.util.jar.JarFile;
+import java.util.jar.JarInputStream;
 
 public class ServiceManager {
     private static final BigInteger ICX = BigInteger.TEN.pow(18);
 
     private final Stack<Frame> contexts = new Stack<>();
-    private final Map<Address, Score> addressScoreMap = new HashMap<>();
-    private final Map<String, Object> storageMap = new HashMap<>();
-    private final Map<String, Class<?>> storageClassMap = new HashMap<>();
     private int nextCount = 1;
+    private final WorldState state = new WorldState();
 
-    public Score deploy(Account owner, Class<?> mainClass, Object... params) throws Exception {
+    public Score deploy(Account caller, Class<?> mainClass, Object... params) throws Exception {
         getBlock().increase();
-        var score = new Score(Account.newScoreAccount(nextCount++), owner);
-        addressScoreMap.put(score.getAddress(), score);
-        pushFrame(owner, score.getAccount(), false, "<init>", BigInteger.ZERO);
+        return deploy(caller, null, mainClass, params);
+    }
+
+    private Score deploy(Account caller, Score score, Class<?> mainClass, Object[] params) throws Exception {
+        if (score == null) {
+            var acct = newScoreAccount();
+            score = new Score(acct, caller);
+        } else {
+            if (score.getOwner() != caller) {
+                throw new RevertedException("NoPermissionToUpdate(owner="+score.getOwner().getAddress()+",caller="+caller.getAddress());
+            }
+        }
+        pushFrame(caller, score.getAccount(), false, "<init>", BigInteger.ZERO);
+        state.setScore(score.getAddress(), score);
         try {
             Constructor<?>[] ctor = mainClass.getConstructors();
             if (ctor.length != 1) {
@@ -47,8 +61,8 @@ public class ServiceManager {
                 throw new AssertionError("multiple public constructors found");
             }
             score.setInstance(ctor[0].newInstance(params));
-        } catch (InstantiationException | InvocationTargetException | IllegalAccessException e) {
-            e.printStackTrace();
+            applyFrame();
+        } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
             throw e;
         } finally {
             popFrame();
@@ -56,14 +70,34 @@ public class ServiceManager {
         return score;
     }
 
+    private Address nextAddress(boolean isContract) {
+        var ba = new byte[Address.LENGTH];
+        ba[0] = isContract ? (byte)1 :(byte)0;
+        var seed = nextCount++;
+        var index = ba.length - 1;
+        ba[index--] = (byte) seed;
+        ba[index--] = (byte) (seed >> 8);
+        ba[index--] = (byte) (seed >> 16);
+        ba[index] = (byte) (seed >> 24);
+        return new Address(ba);
+    }
+
     public Account createAccount() {
-        return createAccount(0);
+        return new Account(state, nextAddress(false));
     }
 
     public Account createAccount(int initialIcx) {
-        var acct = Account.newExternalAccount(nextCount++);
-        acct.addBalance("ICX", ICX.multiply(BigInteger.valueOf(initialIcx)));
+        var acct = createAccount();
+        acct.addBalance(ICX.multiply(BigInteger.valueOf(initialIcx)));
         return acct;
+    }
+
+    public Account getAccount(Address addr) {
+        return Account.accountOf(state, addr);
+    }
+
+    private Account newScoreAccount() {
+        return new Account(state, nextAddress(true));
     }
 
     public Address getOwner() {
@@ -84,9 +118,9 @@ public class ServiceManager {
     }
 
     private Score getScoreFromAddress(Address target) {
-        var score = addressScoreMap.get(target);
+        var score = state.getScore(target);
         if (score == null) {
-            throw new IllegalStateException("ScoreNotFound");
+            throw new RevertedException("ContractNotFound(addr="+target+")");
         }
         return score;
     }
@@ -102,7 +136,27 @@ public class ServiceManager {
             transfer(from.getAccount(), targetAddress, value);
             return null;
         } else {
-            return call(from.getAccount(), value, targetAddress, method, params);
+            return call(from.getAccount(), value, true, false, targetAddress, method, params);
+        }
+    }
+
+    Object call(Account from, BigInteger value, boolean transfer, boolean readonly, Address targetAddress, String method, Object[] params) {
+        if (value.signum()<0) {
+            throw new IllegalArgumentException("value is negative");
+        }
+        Score score = getScoreFromAddress(targetAddress);
+        Account to = score.getAccount();
+        pushFrame(from, to, readonly, method, value);
+        try {
+            if (value.signum()>0 && transfer) {
+                from.subtractBalance(value);
+                to.addBalance(value);
+            }
+            var obj = score.invokeMethod(method, params);
+            applyFrame();
+            return obj;
+        } finally {
+            popFrame();
         }
     }
 
@@ -110,34 +164,28 @@ public class ServiceManager {
         getBlock().increase();
         var fromBalance = from.getBalance();
         if (fromBalance.compareTo(value) < 0) {
-            throw new IllegalStateException("OutOfBalance");
+            throw new OutOfBalanceException("OutOfBalance(from="+from.getAddress()+",balance="+fromBalance+",value="+value+")");
         }
-        var to = Account.getAccount(targetAddress);
-        if (to == null) {
-            throw new IllegalStateException("NoAccount");
-        }
-        from.subtractBalance("ICX", value);
-        to.addBalance("ICX", value);
-        if (targetAddress.isContract()) {
-            call(from, value, targetAddress, "fallback");
+        var to = getAccount(targetAddress);
+        try {
+            state.push();
+            from.subtractBalance(value);
+            to.addBalance(value);
+            if (targetAddress.isContract()) {
+                call(from, value, false, false, targetAddress, "fallback", new Object[]{});
+            }
+            state.apply();
+        } finally {
+            state.pop();
         }
     }
 
     public void putStorage(String key, Object value) {
-        putStorage(key, value, value != null ? value.getClass() : null);
+        state.setValue(getAddress(), key, TypeConverter.toBytes(value));
     }
 
-    public void putStorage(String key, Object value, Class<?> clazz) {
-        storageMap.put(getAddress().toString() + key, value);
-        storageClassMap.put(getAddress().toString() + key, clazz);
-    }
-
-    public Object getStorage(String key) {
-        return storageMap.get(getAddress().toString() + key);
-    }
-
-    public Class<?> getStorageClass(String key) {
-        return storageClassMap.get(getAddress().toString() + key);
+    public <T> T getStorage(Class<T> cls, String key) {
+        return TypeConverter.fromBytes(cls, state.getValue(getAddress(), key));
     }
 
     public static class Block {
@@ -205,12 +253,23 @@ public class ServiceManager {
         }
     }
 
+    private boolean isReadonly() {
+        var frame = getCurrentFrame();
+        return frame!=null ? frame.isReadonly() : false;
+    }
+
     protected void pushFrame(Account from, Account to, boolean readonly, String method, BigInteger value) {
-        contexts.push(new Frame(from, to, readonly, method, value));
+        contexts.push(new Frame(from, to, isReadonly() || readonly, method, value));
+        state.push();
     }
 
     protected void popFrame() {
+        state.pop();
         contexts.pop();
+    }
+
+    protected void applyFrame() {
+        state.apply();
     }
 
     public Frame getCurrentFrame() {

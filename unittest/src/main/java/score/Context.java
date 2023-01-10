@@ -78,7 +78,7 @@ public final class Context extends TestBase {
     }
 
     public static BigInteger getBalance(Address address) throws IllegalArgumentException {
-        return Account.getAccount(address).getBalance();
+        return sm.getAccount(address).getBalance();
     }
 
     public static<T> T call(Class<T> cls, BigInteger value,

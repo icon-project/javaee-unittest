@@ -63,45 +63,11 @@ public class AnyDBImpl extends TestBase implements AnyDB {
     }
 
     private void setValue(String key, Object value) {
-        if (value != null) {
-            try {
-                // Custom AnyDB
-                var clazz = value.getClass();
-                var writeObject = clazz.getMethod("writeObject", ObjectWriter.class, clazz);
-                ByteArrayObjectWriter w = Context.newByteArrayObjectWriter("RLPn");
-                writeObject.invoke(null, w, value);
-                sm.putStorage(key, w.toByteArray(), clazz);
-                return;
-            } catch (NoSuchMethodException e) {
-                // fall through to fallback
-            } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
-                e.printStackTrace();
-                throw new IllegalArgumentException();
-            }
-        }
-        // fallback
         sm.putStorage(key, value);
     }
 
-    private Object getValue(String key) {
-        var value = sm.getStorage(key);
-        Class<?> clazz = sm.getStorageClass(key);
-        if (clazz != null) {
-            try {
-                // Custom AnyDB
-                var readObject = clazz.getMethod("readObject", ObjectReader.class);
-                byte[] serialized = (byte[]) value;
-                ObjectReader r = Context.newByteArrayObjectReader("RLPn", serialized);
-                return readObject.invoke(null, r);
-            } catch (NoSuchMethodException e) {
-                // fall through to fallback
-            } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
-                e.printStackTrace();
-                throw new IllegalArgumentException();
-            }
-        }
-        // fallback
-        return value;
+    private <T> T getValue(Class<T> cls, String key) {
+        return sm.getStorage(cls, key);
     }
 
     // DictDB
@@ -115,12 +81,12 @@ public class AnyDBImpl extends TestBase implements AnyDB {
 
     @Override
     public Object get(Object key) {
-        return getValue(getStorageKey(key, Type.DictDB));
+        return getValue(leafValue, getStorageKey(key, Type.DictDB));
     }
 
     @Override
     public Object getOrDefault(Object key, Object defaultValue) {
-        var v = getValue(getStorageKey(key, Type.DictDB));
+        var v = getValue(leafValue, getStorageKey(key, Type.DictDB));
         return (v != null) ? v : defaultValue;
     }
 
@@ -164,14 +130,14 @@ public class AnyDBImpl extends TestBase implements AnyDB {
         if (index >= size || index < 0) {
             throw new IllegalArgumentException();
         }
-        return getValue(getStorageKey(index, Type.ArrayDB));
+        return getValue(leafValue, getStorageKey(index, Type.ArrayDB));
     }
 
     @Override
     public int size() {
-        var v = getValue(getStorageKey(Type.ArrayDB));
+        var v = getValue(Integer.class, getStorageKey(Type.ArrayDB));
         if (v == null) return 0;
-        return (int) v;
+        return v;
     }
 
     @Override
@@ -183,7 +149,7 @@ public class AnyDBImpl extends TestBase implements AnyDB {
         if (size <= 0) {
             throw new IllegalArgumentException();
         }
-        var v = getValue(getStorageKey(size - 1, Type.ArrayDB));
+        var v = getValue(leafValue, getStorageKey(size - 1, Type.ArrayDB));
         setValue(getStorageKey(size - 1, Type.ArrayDB), null);
         setValue(getStorageKey(Type.ArrayDB), size - 1);
         return v;
@@ -200,12 +166,12 @@ public class AnyDBImpl extends TestBase implements AnyDB {
 
     @Override
     public Object get() {
-        return getValue(getStorageKey(Type.VarDB));
+        return getValue(leafValue, getStorageKey(Type.VarDB));
     }
 
     @Override
     public Object getOrDefault(Object defaultValue) {
-        var v = getValue(getStorageKey(Type.VarDB));
+        var v = getValue(leafValue, getStorageKey(Type.VarDB));
         return (v != null) ? v : defaultValue;
     }
 }
