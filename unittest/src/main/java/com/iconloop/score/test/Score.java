@@ -20,11 +20,9 @@ import score.Address;
 import score.UserRevertedException;
 import score.impl.TypeConverter;
 
-import java.lang.reflect.Array;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.math.BigInteger;
-import java.util.List;
 
 public class Score extends TestBase {
     private static final ServiceManager sm = getServiceManager();
@@ -112,10 +110,8 @@ public class Score extends TestBase {
                     throw new IllegalArgumentException("invalid parameter", e);
                 }
             }
-
             i++;
         }
-
         return parsedParams;
     }
 
@@ -127,22 +123,6 @@ public class Score extends TestBase {
                 return method;
             }
         }
-
         throw new NoSuchMethodException();
-    }
-
-    private Object convertToArray(Object param) {
-        List<?> list = (List<?>) param;
-        if (list.size() == 0) {
-            return param;
-        }
-
-        Class<?> listType = list.get(0).getClass();
-        Object[] arr = (Object[]) Array.newInstance(listType, list.size());
-        for (int j = 0; j < list.size(); j++) {
-            arr[j] = list.get(j);
-        }
-
-        return arr;
     }
 }
