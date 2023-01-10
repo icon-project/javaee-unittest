@@ -23,6 +23,7 @@ import score.impl.AnyDBImpl;
 import score.impl.Crypto;
 import score.impl.RLPObjectReader;
 import score.impl.RLPObjectWriter;
+import score.impl.TypeConverter;
 
 import java.math.BigInteger;
 
@@ -82,21 +83,21 @@ public final class Context extends TestBase {
 
     public static<T> T call(Class<T> cls, BigInteger value,
                             Address targetAddress, String method, Object... params) {
-        return cls.cast(sm.call(value, targetAddress, method, params));
+        return TypeConverter.cast(sm.call(value, targetAddress, method, params), cls);
     }
 
     public static Object call(BigInteger value,
                               Address targetAddress, String method, Object... params) {
-        return sm.call(value, targetAddress, method, params);
+        return TypeConverter.normalize(sm.call(value, targetAddress, method, params));
     }
 
     public static<T> T call(Class<T> cls,
                             Address targetAddress, String method, Object... params) {
-        return cls.cast(sm.call(BigInteger.ZERO, targetAddress, method, params));
+        return TypeConverter.cast(sm.call(BigInteger.ZERO, targetAddress, method, params), cls);
     }
 
     public static Object call(Address targetAddress, String method, Object... params) {
-        return sm.call(BigInteger.ZERO, targetAddress, method, params);
+        return TypeConverter.normalize(sm.call(BigInteger.ZERO, targetAddress, method, params));
     }
 
     public static void transfer(Address targetAddress, BigInteger value) {

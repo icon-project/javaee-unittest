@@ -10,12 +10,14 @@ java {
 }
 
 dependencies {
-    compileOnly 'org.bouncycastle:bcprov-jdk15on:1.70'
+    implementation 'org.bouncycastle:bcprov-jdk15on:1.70'
+    implementation 'org.ow2.asm:asm-util:7.0'
+    implementation 'org.ow2.asm:asm:7.0'
+    implementation 'org.ow2.asm:asm-commons:7.0'
 
     testImplementation 'foundation.icon:javaee-scorex:0.5.3'
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.9.0'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.9.0'
-    testRuntimeOnly 'org.bouncycastle:bcprov-jdk15on:1.70'
 }
 
 test {
