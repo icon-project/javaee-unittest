@@ -16,6 +16,8 @@
 
 package score.impl;
 
+import foundation.icon.ee.io.io.RLPNDataReader;
+import foundation.icon.ee.io.io.RLPNDataWriter;
 import score.Address;
 import score.impl.struct.Property;
 
@@ -279,7 +281,7 @@ public class TypeConverter {
         } else if (v instanceof Address) {
             return ((Address) v).toByteArray();
         } else {
-            var w = new RLPObjectWriter();
+            var w = new ObjectWriterImpl(new RLPNDataWriter());
             w.write(v);
             return w.toByteArray();
         }
@@ -329,7 +331,7 @@ public class TypeConverter {
         } else if (cls == Address.class) {
             return new Address(bs);
         } else {
-            var r = new RLPObjectReader(bs);
+            var r = new ObjectReaderImpl(new RLPNDataReader(bs));
             return r.read(cls);
         }
     }

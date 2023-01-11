@@ -18,10 +18,14 @@ package score;
 
 import com.iconloop.score.test.ManualRevertException;
 import com.iconloop.score.test.TestBase;
+import foundation.icon.ee.io.io.RLPDataReader;
+import foundation.icon.ee.io.io.RLPDataWriter;
+import foundation.icon.ee.io.io.RLPNDataReader;
+import foundation.icon.ee.io.io.RLPNDataWriter;
 import score.impl.AnyDBImpl;
 import score.impl.Crypto;
-import score.impl.RLPObjectReader;
-import score.impl.RLPObjectWriter;
+import score.impl.ObjectReaderImpl;
+import score.impl.ObjectWriterImpl;
 import score.impl.TypeConverter;
 
 import java.math.BigInteger;
@@ -201,14 +205,18 @@ public final class Context extends TestBase {
 
     public static ObjectReader newByteArrayObjectReader(String codec, byte[] byteArray) {
         if ("RLPn".equals(codec)) {
-            return new RLPObjectReader(byteArray);
+            return new ObjectReaderImpl(new RLPNDataReader(byteArray));
+        } else if ("RLP".equals(codec)) {
+            return new ObjectReaderImpl(new RLPDataReader(byteArray));
         }
         throw new IllegalArgumentException("Unknown codec");
     }
 
     public static ByteArrayObjectWriter newByteArrayObjectWriter(String codec) {
         if ("RLPn".equals(codec)) {
-            return new RLPObjectWriter();
+            return new ObjectWriterImpl(new RLPNDataWriter());
+        } else if ("RLP".equals(codec)) {
+            return new ObjectWriterImpl(new RLPDataWriter());
         }
         throw new IllegalArgumentException("Unknown codec");
     }

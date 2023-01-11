@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 ICONLOOP Inc.
+ * Copyright 2023 ICON Foundation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,21 +14,15 @@
  * limitations under the License.
  */
 
-package score.impl;
+package foundation.icon.ee.io.io;
 
-import score.Address;
-import score.ObjectReader;
-
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Modifier;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 
-public class RLPObjectReader implements ObjectReader {
-
+public abstract class AbstractRLPDataReader implements DataReader {
     private static class ListFrame {
         int endPos;
     }
@@ -39,20 +33,25 @@ public class RLPObjectReader implements ObjectReader {
     private ListFrame topFrame;
     private int o;
     private int l;
-    //
-    private int level = 0;
 
-    public RLPObjectReader(byte[] data) {
+    public AbstractRLPDataReader(byte[] data) {
         this(ByteBuffer.wrap(data));
     }
 
-    private RLPObjectReader(ByteBuffer bb) {
+    private AbstractRLPDataReader(ByteBuffer bb) {
         this.bb = bb;
         this.arr = bb.array();
         this.topFrame = new ListFrame();
         this.frames.add(topFrame);
         this.topFrame.endPos = bb.limit();
     }
+
+    /*
+     * return the length of null representation if there is null. 0 if there
+     * is no null.
+     */
+    protected abstract int readNull(byte[] ba, int offset, int len);
+    protected abstract BigInteger readBigInteger(byte[] ba, int offset, int len);
 
     private void readRLPString() {
         var b = peek();
@@ -123,12 +122,10 @@ public class RLPObjectReader implements ObjectReader {
     }
 
     private boolean peekRLPNull(int b) {
-        if (b != 0xf8) {
-            return false;
-        }
         var p = bb.arrayOffset() + bb.position();
-        if (arr[p + 1] == 0) {
-            o = 2 + bb.position();
+        var n = readNull(arr, p, bb.limit() - p);
+        if (n>0) {
+            o = bb.position() + n;
             l = 0;
             return true;
         }
@@ -182,7 +179,7 @@ public class RLPObjectReader implements ObjectReader {
     public BigInteger readBigInteger() {
         readRLPString();
         var offset = bb.arrayOffset() + o;
-        return new BigInteger(arr, offset, l);
+        return readBigInteger(arr, offset, l);
     }
 
     public String readString() {
@@ -197,136 +194,10 @@ public class RLPObjectReader implements ObjectReader {
         return Arrays.copyOfRange(arr, offset, offset + l);
     }
 
-    public Address readAddress() {
-        byte[] b = readByteArray();
-        if (b.length != Address.LENGTH) {
-            throw new IllegalStateException();
-        }
-        return new Address(b);
-    }
-
-    @SuppressWarnings("unchecked")
-    public <T> T read(Class<T> c) {
-        if (c == java.lang.Boolean.class) {
-            return (T) Boolean.valueOf(readBoolean());
-        } else if (c == java.lang.Byte.class) {
-            return (T) Byte.valueOf(readByte());
-        } else if (c == java.lang.Short.class) {
-            return (T) Short.valueOf(readShort());
-        } else if (c == java.lang.Character.class) {
-            return (T) Character.valueOf(readChar());
-        } else if (c == java.lang.Integer.class) {
-            return (T) Integer.valueOf(readInt());
-        } else if (c == java.lang.Float.class) {
-            return (T) Float.valueOf(readFloat());
-        } else if (c == java.lang.Long.class) {
-            return (T) Long.valueOf(readLong());
-        } else if (c == java.lang.Double.class) {
-            return (T) Double.valueOf(readDouble());
-        } else if (c == java.lang.String.class) {
-            return (T) readString();
-        } else if (c == java.math.BigInteger.class) {
-            return (T) readBigInteger();
-        } else if (c == byte[].class) {
-            return (T) readByteArray();
-        } else if (c == Address.class) {
-            return (T) readAddress();
-        } else {
-            try {
-                var m = c.getDeclaredMethod("readObject", ObjectReader.class);
-                if ((m.getModifiers()& Modifier.STATIC) == 0
-                        || (m.getModifiers()&Modifier.PUBLIC) == 0) {
-                    throw new IllegalArgumentException();
-                }
-                var res = m.invoke(null, this);
-                return (T) res;
-            } catch (NoSuchMethodException
-                    | IllegalAccessException
-                    | InvocationTargetException e) {
-                e.printStackTrace();
-                throw new IllegalArgumentException();
-            }
-        }
-    }
-
-    @Override
-    public <T> T readOrDefault(Class<T> c, T def) {
-        if (!hasNext()) {
-            return def;
-        }
-        return read(c);
-    }
-
-    @Override
-    public <T> T readNullable(Class<T> c) {
-        if (readNullity()) {
-            return null;
-        }
-        return read(c);
-    }
-
-    @Override
-    public <T> T readNullableOrDefault(Class<T> c, T def) {
-        if (!hasNext()) {
-            return def;
-        }
-        return readNullable(c);
-    }
-
-    @Override
-    public void beginList() {
-        ++level;
-        readListHeader();
-    }
-
-    @Override
-    public boolean beginNullableList() {
-        if (readNullity()) {
-            return false;
-        }
-        ++level;
-        readListHeader();
-        return true;
-    }
-
-    @Override
-    public void beginMap() {
-        ++level;
-        readMapHeader();
-    }
-
-    @Override
-    public boolean beginNullableMap() {
-        if (readNullity()) {
-            return false;
-        }
-        ++level;
-        readMapHeader();
-        return true;
-    }
-
-    @Override
-    public void end() {
-        if (level == 0) {
-            throw new IllegalStateException();
-        }
-        while (hasNext()) {
-            skip(1);
-        }
-        readFooter();
-        --level;
-    }
-
-    @Override
-    public void skip() {
-        skip(1);
-    }
-
     public boolean readNullity() {
         return this.tryReadNull();
     }
 
-    @Override
     public void skip(int count) {
         for (int i = 0; i < count; i++) {
             var b = peek();
