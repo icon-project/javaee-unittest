@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 
 public class TypeConverter {
+    @SuppressWarnings("unchecked")
     public static Object normalize(Object so) {
         if (so==null) {
             return null;
@@ -59,10 +60,10 @@ public class TypeConverter {
             System.arraycopy(o, 0, no, 0, o.length);
             return no;
         } else if (so instanceof boolean[]) {
-            var o = (char[]) so;
+            var o = (boolean[]) so;
             var no = new Object[o.length];
             for (int i = 0 ; i<o.length ; i++) {
-                no[i] = BigInteger.valueOf(o[i]);
+                no[i] = o[i];
             }
             return no;
         } else if (so instanceof char[]) {
@@ -94,7 +95,7 @@ public class TypeConverter {
             }
             return no;
         } else if (so instanceof List) {
-            var o = (List)so;
+            var o = (List<?>)so;
             var no = new Object[o.size()];
             for (int i=0 ; i<no.length ; i++) {
                 no[i] = normalize(o.get(i));
@@ -188,10 +189,12 @@ public class TypeConverter {
         }
     }
 
+    @SuppressWarnings("unchecked")
     public static<T> T cast(Object so, Class<T> cls) {
         return (T)specialize(normalize(so), cls);
     }
 
+    @SuppressWarnings("unchecked")
     public static Object specialize(Object so, Class<?> cls) {
         if (so == null ) {
             return null;
@@ -221,7 +224,7 @@ public class TypeConverter {
         } else if (cls.isArray()) {
             return castArray(so, cls);
         } else if (cls == Address.class) {
-            return (Address)so;
+            return so;
         } else if (so instanceof java.util.Map) {
             // struct handling
             try {
@@ -303,20 +306,20 @@ public class TypeConverter {
             }
         } else if (cls == Byte.class) {
             var value = new BigInteger(bs);
-            return Byte.valueOf(value.byteValueExact());
+            return value.byteValueExact();
         } else if (cls == Character.class) {
             var value = new BigInteger(bs);
             requireCharacterRange(value);
-            return Character.valueOf((char)value.intValue());
+            return (char) value.intValue();
         } else if (cls == Short.class) {
             var value = new BigInteger(bs);
-            return Short.valueOf(value.shortValueExact());
+            return value.shortValueExact();
         } else if (cls == Integer.class) {
             var value = new BigInteger(bs);
-            return Integer.valueOf(value.intValueExact());
+            return value.intValueExact();
         } else if (cls == Long.class) {
             var value = new BigInteger(bs);
-            return Long.valueOf(value.longValueExact());
+            return value.longValueExact();
         } else if (cls == BigInteger.class) {
             return new BigInteger(bs);
         } else if (cls == String.class) {
