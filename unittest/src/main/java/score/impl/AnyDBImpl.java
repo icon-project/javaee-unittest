@@ -16,17 +16,18 @@
 
 package score.impl;
 
-import com.iconloop.score.test.ServiceManager;
-import com.iconloop.score.test.TestBase;
-import score.ByteArrayObjectWriter;
-import score.Context;
-import score.ObjectReader;
-import score.ObjectWriter;
+import score.ArrayDB;
+import score.BranchDB;
+import score.DictDB;
+import score.VarDB;
 
-import java.lang.reflect.InvocationTargetException;
 
-public class AnyDBImpl extends TestBase implements AnyDB {
-    private static final ServiceManager sm = getServiceManager();
+/**
+ * Implementation class for {@link AnyDB} interface.
+ * @see AnyDB
+ */
+public class AnyDBImpl implements AnyDB {
+    private final ValueStore store;
     private final String prefix;
     private final Class<?> leafValue;
 
@@ -36,7 +37,13 @@ public class AnyDBImpl extends TestBase implements AnyDB {
         VarDB;
     }
 
-    public AnyDBImpl(String id, Class<?> valueClass) {
+    public interface ValueStore  {
+        <T> T getValue(Class<T> cls, String key);
+        void setValue(String key, Object value);
+    }
+
+    private AnyDBImpl(ValueStore store, String id, Class<?> valueClass) {
+        this.store = store;
         this.prefix = id;
         this.leafValue = valueClass;
     }
@@ -46,11 +53,7 @@ public class AnyDBImpl extends TestBase implements AnyDB {
             throw new IllegalArgumentException("null key was supplied");
         }
         var kv = TypeConverter.toBytes(key);
-        var sb = new StringBuilder();
-        sb.append(this.prefix);
-        sb.append("|");
-        sb.append(org.bouncycastle.util.encoders.Hex.toHexString(kv));
-        return sb.toString();
+        return this.prefix + "|" + org.bouncycastle.util.encoders.Hex.toHexString(kv);
     }
 
 
@@ -63,19 +66,16 @@ public class AnyDBImpl extends TestBase implements AnyDB {
     }
 
     private void setValue(String key, Object value) {
-        sm.putStorage(key, value);
+        store.setValue(key, value);
     }
 
     private <T> T getValue(Class<T> cls, String key) {
-        return sm.getStorage(cls, key);
+        return store.getValue(cls, key);
     }
 
     // DictDB
     @Override
     public void set(Object key, Object value) {
-        if (sm.getCurrentFrame().isReadonly()) {
-            throw new IllegalStateException("read-only context");
-        }
         setValue(getStorageKey(key, Type.DictDB), value);
     }
 
@@ -93,15 +93,12 @@ public class AnyDBImpl extends TestBase implements AnyDB {
     // BranchDB
     @Override
     public Object at(Object key) {
-        return new AnyDBImpl(getSubId(key), leafValue);
+        return new AnyDBImpl(store, getSubId(key), leafValue);
     }
 
     // ArrayDB
     @Override
     public void add(Object value) {
-        if (sm.getCurrentFrame().isReadonly()) {
-            throw new IllegalStateException("read-only context");
-        }
         int size = size();
         setValue(getStorageKey(size, Type.ArrayDB), value);
         setValue(getStorageKey(Type.ArrayDB), size + 1);
@@ -109,9 +106,6 @@ public class AnyDBImpl extends TestBase implements AnyDB {
 
     @Override
     public void set(int index, Object value) {
-        if (sm.getCurrentFrame().isReadonly()) {
-            throw new IllegalStateException("read-only context");
-        }
         int size = size();
         if (index >= size || index < 0) {
             throw new IllegalArgumentException();
@@ -142,9 +136,6 @@ public class AnyDBImpl extends TestBase implements AnyDB {
 
     @Override
     public Object pop() {
-        if (sm.getCurrentFrame().isReadonly()) {
-            throw new IllegalStateException("read-only context");
-        }
         int size = size();
         if (size <= 0) {
             throw new IllegalArgumentException();
@@ -158,9 +149,6 @@ public class AnyDBImpl extends TestBase implements AnyDB {
     // VarDB
     @Override
     public void set(Object value) {
-        if (sm.getCurrentFrame().isReadonly()) {
-            throw new IllegalStateException("read-only context");
-        }
         setValue(getStorageKey(Type.VarDB), value);
     }
 
@@ -173,5 +161,63 @@ public class AnyDBImpl extends TestBase implements AnyDB {
     public Object getOrDefault(Object defaultValue) {
         var v = getValue(leafValue, getStorageKey(Type.VarDB));
         return (v != null) ? v : defaultValue;
+    }
+
+    /**
+     * Make new BranchDB to access the store.
+     * @param store Data store
+     * @param id Identifier to the storage
+     * @param leafClass Class to be used for deserializing.
+     * @return New {@link score.BranchDB}
+     * @param <K> Key type
+     * @param <V> Child type (reaching to the {@code leafClass}).
+     * @see com.iconloop.score.test.Score
+     */
+    @SuppressWarnings("unchecked")
+    public static<K,V> BranchDB<K,V> newBranchDB(ValueStore store, String id, Class<?> leafClass) {
+        return new AnyDBImpl(store, id, leafClass);
+    }
+
+    /**
+     * Make new DictDB to access the store.
+     * @param store Data store
+     * @param id Identifier to the storage
+     * @param leafClass Class to be used for deserializing.
+     * @return New {@link score.DictDB}
+     * @param <K> Key type
+     * @param <V> Value type
+     * @see com.iconloop.score.test.Score
+     */
+    @SuppressWarnings("unchecked")
+    public static<K,V> DictDB<K,V> newDictDB(ValueStore store, String id, Class<V> leafClass) {
+        return new AnyDBImpl(store, id, leafClass);
+    }
+
+    /**
+     * Make new ArrayDB to access the store
+     * @param store Data store
+     * @param id Identifier to the storage
+     * @param leafClass Class to be used for deserializing.
+     * @return New {@link score.ArrayDB}
+     * @param <E> Value type
+     * @see com.iconloop.score.test.Score
+     */
+    @SuppressWarnings("unchecked")
+    public static<E> ArrayDB<E> newArrayDB(ValueStore store, String id, Class<E> leafClass) {
+        return new AnyDBImpl(store, id, leafClass);
+    }
+
+    /**
+     * Make new VarDB to access the store
+     * @param store Data store
+     * @param id Identifier to the storage
+     * @param leafClass Class to be used for deserializing.
+     * @return New {@link score.ArrayDB}
+     * @param <E> Value type
+     * @see com.iconloop.score.test.Score
+     */
+    @SuppressWarnings("unchecked")
+    public static<E> VarDB<E> newVarDB(ValueStore store, String id, Class<E> leafClass) {
+        return new AnyDBImpl(store, id, leafClass);
     }
 }

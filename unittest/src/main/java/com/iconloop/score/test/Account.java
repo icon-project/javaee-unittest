@@ -76,9 +76,7 @@ public class Account {
      * Get stored balance for specified token
      * @param symbol symbol of the token
      * @return stored balance for the totken
-     * @deprecated
      */
-    @Deprecated
     public BigInteger getBalance(String symbol) {
         return tokens.getOrDefault(symbol, BigInteger.ZERO);
     }
@@ -87,9 +85,7 @@ public class Account {
      * Add specified value to stored balance
      * @param symbol symbol of the token
      * @param value value to be added
-     * @deprecated
      */
-    @Deprecated
     public void addBalance(String symbol, BigInteger value) {
         if (value.signum()<0) {
             throw new IllegalArgumentException("negative value change");
@@ -102,9 +98,7 @@ public class Account {
      * Subtract specified value from stored balance
      * @param symbol symbol of the token
      * @param value value to be subtracted
-     * @deprecated
      */
-    @Deprecated
     public void subtractBalance(String symbol, BigInteger value) {
         if (value.signum()<0) {
             throw new IllegalArgumentException("negative value change");
@@ -125,7 +119,7 @@ public class Account {
         return accounts.get(address);
     }
 
-    static Account accountOf(WorldState state, Address address) {
+    public static Account accountOf(WorldState state, Address address) {
         var acct = accounts.get(address);
         if (acct != null) {
             if (acct.state != state) {
