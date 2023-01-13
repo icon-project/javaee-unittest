@@ -24,6 +24,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class Account {
+    private static final ServiceManager sm = ServiceManager.getInstance();
+
     final private Address address;
     final private WorldState state;
     final private Map<String, BigInteger> tokens = new HashMap<>();
@@ -129,5 +131,16 @@ public class Account {
         } else {
             return new Account(state, address);
         }
+    }
+
+    /**
+     * New dummy smart contract account
+     * @param seed seed for creating the account
+     * @return created account instance
+     * @deprecated Replaced by {@link ServiceManager#createScoreAccount()}
+     */
+    @Deprecated
+    public static Account newScoreAccount(int seed) {
+        return sm.createScoreAccount();
     }
 }

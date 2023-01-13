@@ -35,11 +35,31 @@ import java.util.jar.JarInputStream;
 public abstract class ServiceManager {
     public abstract Score deploy(Account caller, Class<?> mainClass, Object... params) throws Exception;
 
+    /**
+     * Create new EoA account.
+     * @return created account
+     */
     public abstract Account createAccount();
 
+    /**
+     * Create new EoA account with specified balance.
+     * @param initialIcx Initial balance of the account
+     * @return created account
+     */
     public abstract Account createAccount(int initialIcx);
 
+    /**
+     * Get already created account.
+     * @param addr Address of the account
+     * @return already created account or null.
+     */
     public abstract Account getAccount(Address addr);
+
+    /**
+     * Create new dummy smart contract account.
+     * @return created smart contract account.
+     */
+    public abstract Account createScoreAccount();
 
     /**
      * Invoke specified method for write.

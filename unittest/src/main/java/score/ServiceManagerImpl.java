@@ -77,7 +77,7 @@ class ServiceManagerImpl extends ServiceManager implements AnyDBImpl.ValueStore 
 
     private Score deploy(Account caller, Score score, Class<?> mainClass, Object[] params) throws Exception {
         if (score == null) {
-            var acct = newScoreAccount();
+            var acct = createScoreAccount();
             score = new Score(acct, caller);
         } else {
             if (score.getOwner() != caller) {
@@ -128,7 +128,7 @@ class ServiceManagerImpl extends ServiceManager implements AnyDBImpl.ValueStore 
         return Account.accountOf(state, addr);
     }
 
-    private Account newScoreAccount() {
+    public Account createScoreAccount() {
         return new Account(state, nextAddress(true));
     }
 
