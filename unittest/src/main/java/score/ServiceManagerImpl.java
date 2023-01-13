@@ -39,7 +39,7 @@ class ServiceManagerImpl extends ServiceManager implements AnyDBImpl.ValueStore 
     private static final BigInteger ICX = BigInteger.TEN.pow(18);
 
     private final Stack<Frame> contexts = new Stack<>();
-    private int nextCount = 1;
+    private int nextCount = 0xff;   /* 00 ~ ff is reserved for system contracts */
     private final WorldState state = new WorldState();
     private final Map<Address,Account> accounts = new HashMap<>();
 
@@ -193,6 +193,18 @@ class ServiceManagerImpl extends ServiceManager implements AnyDBImpl.ValueStore 
     @Override
     public Account createScoreAccount() {
         return new Account(state, nextAddress(true));
+    }
+
+    public Score deploy(Address addr, Account owner, Object instance) {
+        if (!addr.isContract()) {
+            throw new IllegalArgumentException("AddressMustBeContract");
+        }
+
+        var account = getAccount(addr);
+        var score = new Score(account, owner);
+        score.setInstance(instance);
+        state.setScore(addr, score);
+        return score;
     }
 
     Address getOwner() {

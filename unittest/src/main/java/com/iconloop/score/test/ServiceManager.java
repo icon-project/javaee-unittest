@@ -21,6 +21,17 @@ import score.Address;
 import java.math.BigInteger;
 
 public abstract class ServiceManager {
+    /**
+     * Deploy contract
+     * <p>
+     *     It simulates icx_sendTransaction with "deploy" dataType.
+     * </p>
+     * @param caller Transaction sender
+     * @param mainClass Smart contract main class to be deployed
+     * @param params Parameters used for constructor.
+     * @return Score to manipulate others.
+     * @throws Exception when it fails to deploy it.
+     */
     public abstract Score deploy(Account caller, Class<?> mainClass, Object... params) throws Exception;
 
     /**
@@ -49,6 +60,20 @@ public abstract class ServiceManager {
      * @return created smart contract account.
      */
     public abstract Account createScoreAccount();
+
+
+    /**
+     * Deploy SCORE on specified address.
+     * <p>
+     *     It may overwrite already deployed one. But the data will be kept.
+     *     It can be used for simulating system contract.
+     * </p>
+     * @param addr Address of the SCORE
+     * @param owner Owner of the SCORE
+     * @param instance Instance of smart contract
+     * @return Created SCORE
+     */
+    public abstract Score deploy(Address addr, Account owner, Object instance);
 
     /**
      * Invoke specified method for write.
