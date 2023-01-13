@@ -32,15 +32,15 @@ public final class Context extends TestBase {
     }
 
     public static byte[] getTransactionHash() {
-        return null;
+        return sm.getTransactionHash();
     }
 
     public static int getTransactionIndex() {
-        return 0;
+        return sm.getTransactionIndex();
     }
 
     public static long getTransactionTimestamp() {
-        return 0L;
+        return sm.getTransactionTimestamp();
     }
 
     public static BigInteger getTransactionNonce() {

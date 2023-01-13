@@ -17,20 +17,8 @@
 package com.iconloop.score.test;
 
 import score.Address;
-import score.RevertedException;
-import score.impl.AnyDBImpl;
-import score.impl.TypeConverter;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.math.BigInteger;
-import java.net.URLClassLoader;
-import java.util.Random;
-import java.util.Stack;
-import java.util.jar.JarFile;
-import java.util.jar.JarInputStream;
 
 public abstract class ServiceManager {
     public abstract Score deploy(Account caller, Class<?> mainClass, Object... params) throws Exception;
@@ -127,24 +115,64 @@ public abstract class ServiceManager {
      */
     public abstract void setValue(Address address, String key, Object value);
 
+    /**
+     * Get last block information.
+     * @return last block information
+     */
     public abstract Block getBlock();
 
 
     public interface Block {
-
+        /**
+         * Get height of the block
+         * @return Height of the current block.
+         */
         long getHeight();
 
+        /**
+         * Get timestamp of the block
+         * @return Timestamp of the block in micro-second
+         */
         long getTimestamp();
 
+        /**
+         * Increase last block height by one.
+         * <p>
+         * To get updated block information, use {@link #getBlock()}.
+         * @see #increase(long)
+         */
         void increase();
 
+        /**
+         * Increase last block height
+         * <p>
+         * To get updated block information, use {@link #getBlock()}.
+         * @param count amount of height to increase
+         * @see #increase()
+         * @see #getBlock()
+         */
         void increase(long count);
+
+        /**
+         * Calculate hash of transaction at the index
+         * <p>
+         * It can be used to match transaction hash retrieved by
+         * {@link score.Context#getTransactionHash()}
+         *
+         * @param idx Index of the transaction
+         * @return the hash value used for the transaction
+         */
+        byte[] hashOfTransactionAt(int idx);
     }
 
     private static ServiceManager sInstance;
     private static final String kServiceManagerImplementationClass = "score.ServiceManagerImpl";
     private static final String kMethodNameToGetServiceManager = "getServiceManager";
 
+    /**
+     * Get singleton instance.
+     * @return singleton instance of it
+     */
     public static ServiceManager getInstance() {
         if (sInstance == null) {
             try {

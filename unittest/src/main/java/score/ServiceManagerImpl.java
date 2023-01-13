@@ -22,15 +22,16 @@ import com.iconloop.score.test.Score;
 import com.iconloop.score.test.ServiceManager;
 import com.iconloop.score.test.WorldState;
 import score.impl.AnyDBImpl;
+import score.impl.Crypto;
 import score.impl.TypeConverter;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.math.BigInteger;
+import java.util.Arrays;
 import java.util.Random;
 import java.util.Stack;
-import java.util.function.Consumer;
 
 class ServiceManagerImpl extends ServiceManager implements AnyDBImpl.ValueStore {
     private static final BigInteger ICX = BigInteger.TEN.pow(18);
@@ -39,39 +40,77 @@ class ServiceManagerImpl extends ServiceManager implements AnyDBImpl.ValueStore 
     private int nextCount = 1;
     private final WorldState state = new WorldState();
 
-    private final ThreadLocal<Block> currentBlock = new ThreadLocal<>();
+    private static final ThreadLocal<TransactionInfo> txInfo = new ThreadLocal<>();
 
-    public void run(Consumer<ServiceManager> consumer) {
-        var blk = currentBlock.get();
-        if (blk != null) {
-            throw new IllegalStateException("AlreadyExecuting(block="+blk+")");
+    static class TransactionInfo {
+        private final int index;
+        private final byte[] txHash;
+        private final Block block;
+        private final long ts;
+
+        private static final int kInvalidIndex = -1;
+
+        TransactionInfo(Block blk, int index) {
+            this.block = blk;
+            if (index >= 0) {
+                this.index = index;
+                this.txHash = blk.hashOfTransactionAt(index);
+                this.ts = blk.getTimestamp()+index*10;
+            } else {
+                this.index = kInvalidIndex;
+                this.txHash = null;
+                this.ts = 0;
+            }
         }
-        try {
-            consumer.accept(this);
-        } finally {
-            Block.next();
-            currentBlock.set(null);
+
+        public byte[] getHash() {
+            return txHash != null ? Arrays.copyOf(txHash, txHash.length) : null;
+        }
+
+        public int getIndex() {
+            if (index < 0) {
+                throw new IllegalStateException("NotInTransaction");
+            }
+            return index;
+        }
+
+        public long getTimestamp() {
+            if (index < 0) {
+                throw new IllegalStateException("NotInTransaction");
+            }
+            return ts;
+        }
+
+        public TransactionInfo next() {
+            return new TransactionInfo(block, index+1);
         }
     }
 
-    private void finalizeResult() {
-        if (currentBlock.get() == null) {
-            Block.next();
-        }
+    private interface TXIScope extends AutoCloseable {
+        void close();
     }
 
-    public ServiceManager.Block nextBlock(long count) {
-        if (currentBlock.get() != null) {
-            throw new IllegalStateException("NotAllowedToAdvanceBlock");
+    private TXIScope setupTransactionInfo(boolean forTx) {
+        var txi = txInfo.get();
+        if (txi == null) {
+            txInfo.set(new TransactionInfo(
+                    Block.next(),
+                    forTx ? 0 : TransactionInfo.kInvalidIndex
+            ));
+            return () -> {
+                txInfo.set(null);
+            };
+        } else if (forTx) {
+            txInfo.set(txi.next());
         }
-        return Block.next(count);
+        return () -> {
+        };
     }
 
+    @Override
     public Score deploy(Account caller, Class<?> mainClass, Object... params) throws Exception {
-        try {
+        try (var scope = setupTransactionInfo(true)) {
             return deploy(caller, null, mainClass, params);
-        } finally {
-            finalizeResult();
         }
     }
 
@@ -114,20 +153,24 @@ class ServiceManagerImpl extends ServiceManager implements AnyDBImpl.ValueStore 
         return new Address(ba);
     }
 
+    @Override
     public Account createAccount() {
         return new Account(state, nextAddress(false));
     }
 
+    @Override
     public Account createAccount(int initialIcx) {
         var acct = createAccount();
         acct.addBalance(ICX.multiply(BigInteger.valueOf(initialIcx)));
         return acct;
     }
 
+    @Override
     public Account getAccount(Address addr) {
         return Account.accountOf(state, addr);
     }
 
+    @Override
     public Account createScoreAccount() {
         return new Account(state, nextAddress(true));
     }
@@ -159,10 +202,8 @@ class ServiceManagerImpl extends ServiceManager implements AnyDBImpl.ValueStore 
 
     @Override
     public void invoke(Account from, BigInteger value, Address targetAddress, String method, Object... params) {
-        try {
+        try (var scope = setupTransactionInfo(true)) {
             handleCall(from, value, true, false, targetAddress, method, params);
-        } finally {
-            finalizeResult();
         }
     }
 
@@ -212,11 +253,25 @@ class ServiceManagerImpl extends ServiceManager implements AnyDBImpl.ValueStore 
         }
     }
 
-    public void transfer(Account from, Address targetAddress, BigInteger value) {
-        try {
-            handleTransfer(from, targetAddress, value);
-        } finally {
+    int getTransactionIndex() {
+        var info = txInfo.get();
+        return info != null ? info.getIndex() : 0;
+    }
 
+    byte[] getTransactionHash() {
+        var info = txInfo.get();
+        return info != null ? info.getHash() : null;
+    }
+
+    long getTransactionTimestamp() {
+        var info = txInfo.get();
+        return info != null ? info.getTimestamp() : System.nanoTime() / 1000;
+    }
+
+    @Override
+    public void transfer(Account from, Address targetAddress, BigInteger value) {
+        try (var scope = setupTransactionInfo(true)) {
+            handleTransfer(from, targetAddress, value);
         }
     }
 
@@ -280,8 +335,8 @@ class ServiceManagerImpl extends ServiceManager implements AnyDBImpl.ValueStore 
         // 2 seconds ( 2_000_000 micro-seconds )
         private static long sBlockInterval = 2_000_000;
 
-        private long height;
-        private long timestamp;
+        private final long height;
+        private final long timestamp;
 
         private Block(long height, long timestamp) {
             this.height = height;
@@ -316,6 +371,10 @@ class ServiceManagerImpl extends ServiceManager implements AnyDBImpl.ValueStore 
             return "Block(height="+height+",ts="+timestamp+")";
         }
 
+        public byte[] hashOfTransactionAt(int idx) {
+            return Crypto.sha3_256((this+":"+idx).getBytes());
+        }
+
         static Block next() {
             return next(1);
         }
@@ -325,6 +384,9 @@ class ServiceManagerImpl extends ServiceManager implements AnyDBImpl.ValueStore 
         }
 
         static Block next(long delta, long duration) {
+            if (txInfo.get() != null) {
+                throw new IllegalStateException("NotAllowedToAdvanceBlock");
+            }
             if (delta <= 0) {
                 throw new IllegalArgumentException("InvalidHeightDelta(delta=" + delta + ")");
             }
