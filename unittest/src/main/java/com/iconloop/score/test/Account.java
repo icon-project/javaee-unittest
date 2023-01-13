@@ -17,7 +17,6 @@
 package com.iconloop.score.test;
 
 import score.Address;
-import score.impl.AnyDBImpl;
 
 import java.math.BigInteger;
 import java.util.HashMap;
@@ -29,7 +28,6 @@ public class Account {
     final private Address address;
     final private WorldState state;
     final private Map<String, BigInteger> tokens = new HashMap<>();
-    final private static Map<Address,Account> accounts = new HashMap<>();
 
     /**
      * Get address of the account
@@ -42,7 +40,6 @@ public class Account {
     public Account(WorldState state, Address address) {
         this.state = state;
         this.address = address;
-        accounts.put(address, this);
     }
 
     @Override
@@ -118,19 +115,7 @@ public class Account {
      * @return Account for accessing the account data
      */
     public static Account getAccount(Address address) {
-        return accounts.get(address);
-    }
-
-    public static Account accountOf(WorldState state, Address address) {
-        var acct = accounts.get(address);
-        if (acct != null) {
-            if (acct.state != state) {
-                throw new IllegalStateException("different state for same address");
-            }
-            return acct;
-        } else {
-            return new Account(state, address);
-        }
+        return sm.getAccount(address);
     }
 
     /**

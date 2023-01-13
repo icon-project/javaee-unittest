@@ -37,9 +37,10 @@ public abstract class ServiceManager {
     public abstract Account createAccount(int initialIcx);
 
     /**
-     * Get already created account.
+     * Get account.
      * @param addr Address of the account
-     * @return already created account or null.
+     * @return If it's already created, then it returns
+     *          otherwise, it would be created.
      */
     public abstract Account getAccount(Address addr);
 

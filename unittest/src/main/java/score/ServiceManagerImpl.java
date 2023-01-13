@@ -30,6 +30,8 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.math.BigInteger;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 import java.util.Stack;
 
@@ -39,6 +41,7 @@ class ServiceManagerImpl extends ServiceManager implements AnyDBImpl.ValueStore 
     private final Stack<Frame> contexts = new Stack<>();
     private int nextCount = 1;
     private final WorldState state = new WorldState();
+    private final Map<Address,Account> accounts = new HashMap<>();
 
     private static final ThreadLocal<TransactionInfo> txInfo = new ThreadLocal<>();
 
@@ -153,9 +156,20 @@ class ServiceManagerImpl extends ServiceManager implements AnyDBImpl.ValueStore 
         return new Address(ba);
     }
 
+    Account createAccount(Address address) {
+        if (address==null) {
+            throw new NullPointerException("AddressIsNull");
+        }
+        if (accounts.containsKey(address)) {
+            throw new IllegalArgumentException("AlreadyCreatedAccount(addr="+address+")");
+        }
+        return new Account(state, address);
+    }
+
+
     @Override
     public Account createAccount() {
-        return new Account(state, nextAddress(false));
+        return createAccount(nextAddress(false));
     }
 
     @Override
@@ -167,7 +181,13 @@ class ServiceManagerImpl extends ServiceManager implements AnyDBImpl.ValueStore 
 
     @Override
     public Account getAccount(Address addr) {
-        return Account.accountOf(state, addr);
+        if (addr == null) {
+            throw new NullPointerException(("AddressIsNull"));
+        }
+        if (accounts.containsKey(addr)) {
+            return accounts.get(addr);
+        }
+        return createAccount(addr);
     }
 
     @Override
