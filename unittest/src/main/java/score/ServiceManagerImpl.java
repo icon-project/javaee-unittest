@@ -172,6 +172,16 @@ class ServiceManagerImpl extends ServiceManager implements AnyDBImpl.ValueStore 
         return handleCall(null, BigInteger.ZERO, false, true, targetAddress, method, params);
     }
 
+    @Override
+    public <T> T call(Class<T> cls, Address targetAddress, String method, Object... params) {
+        return TypeConverter.cast(
+                handleCall(null, BigInteger.ZERO, false, true,
+                        targetAddress, method, params
+                ),
+                cls
+        );
+    }
+
     Object call(BigInteger value, Address targetAddress, String method, Object... params) {
         Score from = getScoreFromAddress(getAddress());
         if ("fallback".equals(method) || "".equals(method)) {

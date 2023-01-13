@@ -83,20 +83,22 @@ public abstract class ServiceManager {
      * @param targetAddress Receiver of the call
      * @param method Name of the method
      * @param params Parameters for the method
-     * @return Return value of the method.
-     *      It's normalized form.
-     *      One of following types are used.
-     *      <ul>
-     *      <li>BigInteger(for int)</li>
-     *      <li>Boolean(for boolean)</li>
-     *      <li>byte[](for bytes)</li>
-     *      <li>String(for str)</li>
-     *      <li>Address</li>
-     *      <li>Map(for dict)</li>
-     *      <li>Object[](for list)</li>
-     *      </ul>
+     * @return Return value of the method as it is
      */
     public abstract Object call(Address targetAddress, String method, Object... params);
+
+    /**
+     * Call specified method for read.
+     * It simulates icx_call.
+     * @param cls Return object type
+     * @param targetAddress Receiver of the call
+     * @param method Name of the method
+     * @param params Parameters for the method
+     * @return Return value of the method converted to the specified type.
+     * @param <T> Return type
+     *           It will throw exception on prohibited types.
+     */
+    public abstract <T> T call(Class<T> cls, Address targetAddress, String method, Object... params);
 
     /**
      * Transfer native coin
