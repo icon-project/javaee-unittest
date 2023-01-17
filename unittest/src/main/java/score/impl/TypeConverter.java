@@ -244,11 +244,12 @@ public class TypeConverter {
                      | IllegalAccessException
                      | InstantiationException
                      | InvocationTargetException e) {
-                throw new RuntimeException(e);
+                throw new IllegalArgumentException(String.format(
+                        "InvalidStructType(target=%s)", cls.getName()), e);
             }
         } else {
-            throw new IllegalArgumentException("invalid parameter type source="+so.getClass().getName()
-                    +" target="+cls.getName());
+            throw new IllegalArgumentException(String.format(
+                    "UnsupportedTargetClass(target=%s)", cls.getName(), so.getClass().getName()));
         }
     }
 

@@ -31,6 +31,7 @@ import java.lang.reflect.Method;
 import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Stack;
@@ -507,13 +508,20 @@ class ServiceManagerImpl extends ServiceManager implements AnyDBImpl.ValueStore 
 
         int i = 0;
         for (Class<?> parameterClass : parameterTypes) {
+            if (parameterClass == Map.class || parameterClass == List.class) {
+                throw new IllegalArgumentException(
+                        String.format("ProhibitedParameterType(idx=%d,target=%s)",
+                                i, parameterClass.getName()));
+            }
             if (i>=params.length) {
                 parsedParams[i] = null;
             } else {
                 try {
                     parsedParams[i] = TypeConverter.cast(params[i], parameterClass);
                 } catch (RuntimeException e) {
-                    throw new IllegalArgumentException("invalid parameter", e);
+                    throw new IllegalArgumentException(
+                            String.format("InvalidParameter(idx=%d,target=%s,source=%s)",
+                                    i, parameterClass.getName(), params[i].getClass().getName()), e);
                 }
             }
             i++;
