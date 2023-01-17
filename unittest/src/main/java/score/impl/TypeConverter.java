@@ -24,6 +24,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -217,7 +218,7 @@ public class TypeConverter {
             return ((BigInteger) so).longValueExact();
         } else if (cls == List.class) {
             var o = (Object[])so;
-            return List.of(o);
+            return Collections.unmodifiableList(Arrays.asList(o));
         } else if (cls == Map.class) {
             var o = (Map<String, Object>)so;
             return Map.copyOf(o);
