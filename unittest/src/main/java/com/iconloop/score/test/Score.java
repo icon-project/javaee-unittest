@@ -17,12 +17,8 @@
 package com.iconloop.score.test;
 
 import score.Address;
-import score.UserRevertedException;
 import score.impl.AnyDBImpl;
-import score.impl.TypeConverter;
 
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.math.BigInteger;
 
 public class Score extends TestBase implements AnyDBImpl.ValueStore {
