@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 ICONLOOP Inc.
+ * Copyright 2023 ICONLOOP Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,12 +16,22 @@
 
 package com.iconloop.score.test;
 
-import java.math.BigInteger;
+import score.RevertedException;
 
-public class TestBase {
-    protected static final BigInteger ICX = BigInteger.TEN.pow(18);
+public class OutOfBalanceException extends RevertedException {
+    public OutOfBalanceException() {
+        super();
+    }
 
-    protected static ServiceManager getServiceManager() {
-        return ServiceManager.getInstance();
+    public OutOfBalanceException(String msg) {
+        super(msg);
+    }
+
+    public OutOfBalanceException(String msg, Throwable cause) {
+        super(msg, cause);
+    }
+
+    public OutOfBalanceException(Throwable cause) {
+        super(cause);
     }
 }

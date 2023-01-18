@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 ICONLOOP Inc.
+ * Copyright 2023 ICONLOOP Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,63 +23,109 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class Account {
-    private static final Map<Address, Account> accounts = new HashMap<>();
+    private static final ServiceManager sm = ServiceManager.getInstance();
 
-    private final Address address;
-    private final Map<String, BigInteger> balances = new HashMap<>();
+    final private Address address;
+    final private WorldState state;
+    final private Map<String, BigInteger> tokens = new HashMap<>();
 
-    public static Account newExternalAccount(int seed) {
-        var acct = new Account(0, seed);
-        accounts.put(acct.getAddress(), acct);
-        return acct;
-    }
-
-    public static Account newScoreAccount(int seed) {
-        var acct = new Account(1, seed);
-        accounts.put(acct.getAddress(), acct);
-        return acct;
-    }
-
-    public static Account getAccount(Address address) {
-        return accounts.get(address);
-    }
-
-    private Account(int type, int seed) {
-        var ba = new byte[Address.LENGTH];
-        ba[0] = (byte) type;
-        var index = ba.length - 1;
-        ba[index--] = (byte) seed;
-        ba[index--] = (byte) (seed >> 8);
-        ba[index--] = (byte) (seed >> 16);
-        ba[index] = (byte) (seed >> 24);
-        this.address = new Address(ba);
-    }
-
+    /**
+     * Get address of the account
+     * @return Address of the account
+     */
     public Address getAddress() {
         return address;
     }
 
-    public void addBalance(String symbol, BigInteger value) {
-        balances.put(symbol, getBalance(symbol).add(value));
-    }
-
-    public void subtractBalance(String symbol, BigInteger value) {
-        balances.put(symbol, getBalance(symbol).subtract(value));
-    }
-
-    public BigInteger getBalance(String symbol) {
-        return balances.getOrDefault(symbol, BigInteger.ZERO);
-    }
-
-    public BigInteger getBalance() {
-        return getBalance("ICX");
+    public Account(WorldState state, Address address) {
+        this.state = state;
+        this.address = address;
     }
 
     @Override
     public String toString() {
-        return "Account{" +
-                "address=" + address +
-                ", balances=" + balances +
-                '}';
+        return address.toString();
+    }
+
+    /**
+     * Get current balance of the account
+     * @return balance of the account
+     */
+    public BigInteger getBalance() {
+        return state.getBalance(address);
+    }
+
+    /**
+     * Increase balance of the account
+     * @param value Amount to increase
+     */
+    public void addBalance(BigInteger value) {
+        state.addBalance(address, value);
+    }
+
+    /**
+     * Decrease balance of the account
+     * @param value Amount to increase
+     */
+    public void subtractBalance(BigInteger value) {
+        state.subtractBalance(address, value);
+    }
+
+    /**
+     * Get stored balance for specified token
+     * @param symbol symbol of the token
+     * @return stored balance for the totken
+     */
+    public BigInteger getBalance(String symbol) {
+        return tokens.getOrDefault(symbol, BigInteger.ZERO);
+    }
+
+    /**
+     * Add specified value to stored balance
+     * @param symbol symbol of the token
+     * @param value value to be added
+     */
+    public void addBalance(String symbol, BigInteger value) {
+        if (value.signum()<0) {
+            throw new IllegalArgumentException("negative value change");
+        }
+        var balance = getBalance(symbol);
+        tokens.put(symbol, balance.add(value));
+    }
+
+    /**
+     * Subtract specified value from stored balance
+     * @param symbol symbol of the token
+     * @param value value to be subtracted
+     */
+    public void subtractBalance(String symbol, BigInteger value) {
+        if (value.signum()<0) {
+            throw new IllegalArgumentException("negative value change");
+        }
+        var balance = getBalance(symbol);
+        if (balance.compareTo(value)<0) {
+            throw new IllegalArgumentException("out of balance");
+        }
+        tokens.put(symbol, balance.subtract(value));
+    }
+
+    /**
+     * Get the account with the address
+     * @param address Address of the account
+     * @return Account for accessing the account data
+     */
+    public static Account getAccount(Address address) {
+        return sm.getAccount(address);
+    }
+
+    /**
+     * New dummy smart contract account
+     * @param seed seed for creating the account
+     * @return created account instance
+     * @deprecated Replaced by {@link ServiceManager#createScoreAccount()}
+     */
+    @Deprecated
+    public static Account newScoreAccount(int seed) {
+        return sm.createScoreAccount();
     }
 }

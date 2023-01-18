@@ -24,11 +24,13 @@ import java.lang.reflect.InvocationTargetException;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 public class TypeConverter {
+    @SuppressWarnings("unchecked")
     public static Object normalize(Object so) {
         if (so==null) {
             return null;
@@ -59,10 +61,10 @@ public class TypeConverter {
             System.arraycopy(o, 0, no, 0, o.length);
             return no;
         } else if (so instanceof boolean[]) {
-            var o = (char[]) so;
+            var o = (boolean[]) so;
             var no = new Object[o.length];
             for (int i = 0 ; i<o.length ; i++) {
-                no[i] = BigInteger.valueOf(o[i]);
+                no[i] = o[i];
             }
             return no;
         } else if (so instanceof char[]) {
@@ -94,7 +96,7 @@ public class TypeConverter {
             }
             return no;
         } else if (so instanceof List) {
-            var o = (List)so;
+            var o = (List<?>)so;
             var no = new Object[o.size()];
             for (int i=0 ; i<no.length ; i++) {
                 no[i] = normalize(o.get(i));
@@ -188,10 +190,12 @@ public class TypeConverter {
         }
     }
 
+    @SuppressWarnings("unchecked")
     public static<T> T cast(Object so, Class<T> cls) {
         return (T)specialize(normalize(so), cls);
     }
 
+    @SuppressWarnings("unchecked")
     public static Object specialize(Object so, Class<?> cls) {
         if (so == null ) {
             return null;
@@ -214,14 +218,14 @@ public class TypeConverter {
             return ((BigInteger) so).longValueExact();
         } else if (cls == List.class) {
             var o = (Object[])so;
-            return List.of(o);
+            return Collections.unmodifiableList(Arrays.asList(o));
         } else if (cls == Map.class) {
             var o = (Map<String, Object>)so;
             return Map.copyOf(o);
         } else if (cls.isArray()) {
             return castArray(so, cls);
         } else if (cls == Address.class) {
-            return (Address)so;
+            return so;
         } else if (so instanceof java.util.Map) {
             // struct handling
             try {
@@ -241,17 +245,18 @@ public class TypeConverter {
                      | IllegalAccessException
                      | InstantiationException
                      | InvocationTargetException e) {
-                throw new RuntimeException(e);
+                throw new IllegalArgumentException(String.format(
+                        "InvalidStructType(target=%s)", cls.getName()), e);
             }
         } else {
-            throw new IllegalArgumentException("invalid parameter type source="+so.getClass().getName()
-                    +" target="+cls.getName());
+            throw new IllegalArgumentException(String.format(
+                    "UnsupportedTargetClass(target=%s)", cls.getName(), so.getClass().getName()));
         }
     }
 
     public static byte[] toBytes(Object v) {
         if (v == null) {
-            throw new IllegalArgumentException("null for key");
+            return null;
         } else if (v instanceof String) {
             return ((String)v).getBytes(StandardCharsets.UTF_8);
         } else if (v instanceof byte[]) {
@@ -285,15 +290,12 @@ public class TypeConverter {
     }
 
     private static Object fromBytesReal(Class<?> cls, byte[] bs) {
-        if (bs==null) {
+        if (bs == null) {
             return null;
         }
         if (cls == byte[].class) {
             return Arrays.copyOf(bs, bs.length);
         } else if (cls == Boolean.class) {
-            if (bs.length==0) {
-                return Boolean.FALSE;
-            }
             if (bs.length != 1) {
                 throw new IllegalArgumentException("invalid length for boolean len=" + bs.length);
             }
@@ -306,20 +308,20 @@ public class TypeConverter {
             }
         } else if (cls == Byte.class) {
             var value = new BigInteger(bs);
-            return Byte.valueOf(value.byteValueExact());
+            return value.byteValueExact();
         } else if (cls == Character.class) {
             var value = new BigInteger(bs);
             requireCharacterRange(value);
-            return Character.valueOf((char)value.intValue());
+            return (char) value.intValue();
         } else if (cls == Short.class) {
             var value = new BigInteger(bs);
-            return Short.valueOf(value.shortValueExact());
+            return value.shortValueExact();
         } else if (cls == Integer.class) {
             var value = new BigInteger(bs);
-            return Integer.valueOf(value.intValueExact());
+            return value.intValueExact();
         } else if (cls == Long.class) {
             var value = new BigInteger(bs);
-            return Long.valueOf(value.longValueExact());
+            return value.longValueExact();
         } else if (cls == BigInteger.class) {
             return new BigInteger(bs);
         } else if (cls == String.class) {

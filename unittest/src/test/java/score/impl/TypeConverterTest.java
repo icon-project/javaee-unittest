@@ -14,6 +14,7 @@ class TypeConverterTest {
     void bytes() {
         var cases = new byte[][]{
                 new byte[]{0x01, 0x02},
+                new byte[]{(byte)0x83},
                 new byte[]{},
         };
         for (var tc : cases) {

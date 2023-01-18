@@ -16,8 +16,6 @@
 
 package score;
 
-import com.iconloop.score.test.Account;
-import com.iconloop.score.test.ServiceManager;
 import com.iconloop.score.test.TestBase;
 import score.impl.AnyDBImpl;
 import score.impl.Crypto;
@@ -28,21 +26,21 @@ import score.impl.TypeConverter;
 import java.math.BigInteger;
 
 public final class Context extends TestBase {
-    private static final ServiceManager sm = getServiceManager();
+    private static final ServiceManagerImpl sm = ServiceManagerImpl.getServiceManagerImpl();
 
     private Context() {
     }
 
     public static byte[] getTransactionHash() {
-        return null;
+        return sm.getTransactionHash();
     }
 
     public static int getTransactionIndex() {
-        return 0;
+        return sm.getTransactionIndex();
     }
 
     public static long getTransactionTimestamp() {
-        return 0L;
+        return sm.getTransactionTimestamp();
     }
 
     public static BigInteger getTransactionNonce() {
@@ -78,7 +76,7 @@ public final class Context extends TestBase {
     }
 
     public static BigInteger getBalance(Address address) throws IllegalArgumentException {
-        return Account.getAccount(address).getBalance();
+        return sm.getAccount(address).getBalance();
     }
 
     public static<T> T call(Class<T> cls, BigInteger value,
@@ -179,22 +177,22 @@ public final class Context extends TestBase {
 
     @SuppressWarnings("unchecked")
     public static<K, V> BranchDB<K, V> newBranchDB(String id, Class<?> leafValueClass) {
-        return new AnyDBImpl(id, leafValueClass);
+        return AnyDBImpl.newBranchDB(sm, id, leafValueClass);
     }
 
     @SuppressWarnings("unchecked")
     public static<K, V> DictDB<K, V> newDictDB(String id, Class<V> valueClass) {
-        return new AnyDBImpl(id, valueClass);
+        return AnyDBImpl.newDictDB(sm, id, valueClass);
     }
 
     @SuppressWarnings("unchecked")
     public static<E> ArrayDB<E> newArrayDB(String id, Class<E> valueClass) {
-        return new AnyDBImpl(id, valueClass);
+        return AnyDBImpl.newArrayDB(sm, id, valueClass);
     }
 
     @SuppressWarnings("unchecked")
     public static<E> VarDB<E> newVarDB(String id, Class<E> valueClass) {
-        return new AnyDBImpl(id, valueClass);
+        return AnyDBImpl.newVarDB(sm, id, valueClass);
     }
 
     public static void logEvent(Object[] indexed, Object[] data) {

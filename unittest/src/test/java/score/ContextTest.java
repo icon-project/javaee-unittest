@@ -24,6 +24,8 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import score.impl.Crypto;
 
+import java.math.BigInteger;
+
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -63,5 +65,13 @@ class ContextTest extends TestBase {
             assertArrayEquals(Crypto.hash(algo, data),
                     (byte[]) helloScore.call("computeHash", algo, data));
         }
+    }
+    @Test
+    void getBalance() {
+        var exp = BigInteger.TEN.pow(18).multiply(BigInteger.valueOf(100));
+        var acct = sm.createAccount(100);
+        assertEquals(exp, acct.getBalance());
+        var balance = Context.getBalance(acct.getAddress());
+        assertEquals(exp, balance);
     }
 }

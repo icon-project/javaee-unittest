@@ -18,206 +18,198 @@ package com.iconloop.score.test;
 
 import score.Address;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.math.BigInteger;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Random;
-import java.util.Stack;
 
-public class ServiceManager {
-    private static final BigInteger ICX = BigInteger.TEN.pow(18);
+public abstract class ServiceManager {
+    /**
+     * Deploy contract
+     * <p>
+     *     It simulates icx_sendTransaction with "deploy" dataType.
+     * </p>
+     * @param caller Transaction sender
+     * @param mainClass Smart contract main class to be deployed
+     * @param params Parameters used for constructor.
+     * @return Score to manipulate others.
+     * @throws Exception when it fails to deploy it.
+     */
+    public abstract Score deploy(Account caller, Class<?> mainClass, Object... params) throws Exception;
 
-    private final Stack<Frame> contexts = new Stack<>();
-    private final Map<Address, Score> addressScoreMap = new HashMap<>();
-    private final Map<String, Object> storageMap = new HashMap<>();
-    private final Map<String, Class<?>> storageClassMap = new HashMap<>();
-    private int nextCount = 1;
+    /**
+     * Create new EoA account.
+     * @return created account
+     */
+    public abstract Account createAccount();
 
-    public Score deploy(Account owner, Class<?> mainClass, Object... params) throws Exception {
-        getBlock().increase();
-        var score = new Score(Account.newScoreAccount(nextCount++), owner);
-        addressScoreMap.put(score.getAddress(), score);
-        pushFrame(owner, score.getAccount(), false, "<init>", BigInteger.ZERO);
-        try {
-            Constructor<?>[] ctor = mainClass.getConstructors();
-            if (ctor.length != 1) {
-                // User SCORE should only have one public constructor
-                throw new AssertionError("multiple public constructors found");
+    /**
+     * Create new EoA account with specified balance.
+     * @param initialIcx Initial balance of the account
+     * @return created account
+     */
+    public abstract Account createAccount(int initialIcx);
+
+    /**
+     * Get account.
+     * @param addr Address of the account
+     * @return If it's already created, then it returns
+     *          otherwise, it would be created.
+     */
+    public abstract Account getAccount(Address addr);
+
+    /**
+     * Create new dummy smart contract account.
+     * @return created smart contract account.
+     */
+    public abstract Account createScoreAccount();
+
+
+    /**
+     * Deploy SCORE on specified address.
+     * <p>
+     *     It may overwrite already deployed one. But the data will be kept.
+     *     It can be used for simulating system contract.
+     * </p>
+     * @param addr Address of the SCORE
+     * @param owner Owner of the SCORE
+     * @param instance Instance of smart contract
+     * @return Created SCORE
+     */
+    public abstract Score deploy(Address addr, Account owner, Object instance);
+
+    /**
+     * Invoke specified method for write.
+     * It simulates icx_sendTransaction with dataType "call".
+     * @param from Sender
+     * @param value Value to transfer on call
+     * @param targetAddress Receiver of the call
+     * @param method Name of the method
+     * @param params Parameters for the method
+     */
+    public abstract void invoke(Account from, BigInteger value, Address targetAddress, String method, Object... params);
+
+    @Deprecated
+    public void call(Account from, BigInteger value, Address targetAddress, String method, Object... params) {
+        this.invoke(from, value, targetAddress, method, params);
+    }
+
+    /**
+     * Call specified method for read.
+     * It simulates icx_call.
+     * @param targetAddress Receiver of the call
+     * @param method Name of the method
+     * @param params Parameters for the method
+     * @return Return value of the method as it is
+     */
+    public abstract Object call(Address targetAddress, String method, Object... params);
+
+    /**
+     * Call specified method for read.
+     * It simulates icx_call.
+     * @param cls Return object type
+     * @param targetAddress Receiver of the call
+     * @param method Name of the method
+     * @param params Parameters for the method
+     * @return Return value of the method converted to the specified type.
+     * @param <T> Return type
+     *           It will throw exception on prohibited types.
+     */
+    public abstract <T> T call(Class<T> cls, Address targetAddress, String method, Object... params);
+
+    /**
+     * Transfer native coin
+     * It simulates icx_sendTransaction with no dataType.
+     * @param from Sender
+     * @param targetAddress Receiver of the call
+     * @param value Amount to transfer
+     */
+    public abstract void transfer(Account from, Address targetAddress, BigInteger value);
+
+    /**
+     * Get value of the storage of the contract.
+     * @param cls Output object class
+     * @param address Contract address
+     * @param key Key for the storage
+     * @return Deserialized value
+     * @param <T> Output return type
+     */
+    public abstract <T> T getValue(Class<T> cls, Address address, String key);
+
+    /**
+     * Set value of the storage of the contract.
+     * @param address Contract address
+     * @param key Key for the storage
+     * @param value Value to be stored
+     */
+    public abstract void setValue(Address address, String key, Object value);
+
+    /**
+     * Get last block information.
+     * @return last block information
+     */
+    public abstract Block getBlock();
+
+
+    public interface Block {
+        /**
+         * Get height of the block
+         * @return Height of the current block.
+         */
+        long getHeight();
+
+        /**
+         * Get timestamp of the block
+         * @return Timestamp of the block in micro-second
+         */
+        long getTimestamp();
+
+        /**
+         * Increase last block height by one.
+         * <p>
+         * To get updated block information, use {@link #getBlock()}.
+         * @see #increase(long)
+         */
+        void increase();
+
+        /**
+         * Increase last block height
+         * <p>
+         * To get updated block information, use {@link #getBlock()}.
+         * @param count amount of height to increase
+         * @see #increase()
+         * @see #getBlock()
+         */
+        void increase(long count);
+
+        /**
+         * Calculate hash of transaction at the index
+         * <p>
+         * It can be used to match transaction hash retrieved by
+         * {@link score.Context#getTransactionHash()}
+         *
+         * @param idx Index of the transaction
+         * @return the hash value used for the transaction
+         */
+        byte[] hashOfTransactionAt(int idx);
+    }
+
+    private static ServiceManager sInstance;
+    private static final String kServiceManagerImplementationClass = "score.ServiceManagerImpl";
+    private static final String kMethodNameToGetServiceManager = "getServiceManager";
+
+    /**
+     * Get singleton instance.
+     * @return singleton instance of it
+     */
+    public static ServiceManager getInstance() {
+        if (sInstance == null) {
+            try {
+                var sm = Class.forName(kServiceManagerImplementationClass);
+                var method = sm.getDeclaredMethod(kMethodNameToGetServiceManager);
+                method.setAccessible(true);
+                sInstance = (ServiceManager) method.invoke(sm);
+            } catch (Exception e) {
+                throw new IllegalStateException("UnableToGetServiceManager", e);
             }
-            score.setInstance(ctor[0].newInstance(params));
-        } catch (InstantiationException | InvocationTargetException | IllegalAccessException e) {
-            e.printStackTrace();
-            throw e;
-        } finally {
-            popFrame();
         }
-        return score;
-    }
-
-    public Account createAccount() {
-        return createAccount(0);
-    }
-
-    public Account createAccount(int initialIcx) {
-        var acct = Account.newExternalAccount(nextCount++);
-        acct.addBalance("ICX", ICX.multiply(BigInteger.valueOf(initialIcx)));
-        return acct;
-    }
-
-    public Address getOwner() {
-        var address = getCurrentFrame().to.getAddress();
-        return getScoreFromAddress(address).getOwner().getAddress();
-    }
-
-    public Address getOrigin() {
-        return getFirstFrame().from.getAddress();
-    }
-
-    public Address getCaller() {
-        return getCurrentFrame().from.getAddress();
-    }
-
-    public Address getAddress() {
-        return getCurrentFrame().to.getAddress();
-    }
-
-    private Score getScoreFromAddress(Address target) {
-        var score = addressScoreMap.get(target);
-        if (score == null) {
-            throw new IllegalStateException("ScoreNotFound");
-        }
-        return score;
-    }
-
-    public Object call(Account from, BigInteger value, Address targetAddress, String method, Object... params) {
-        Score score = getScoreFromAddress(targetAddress);
-        return score.call(from, false, value, method, params);
-    }
-
-    public Object call(BigInteger value, Address targetAddress, String method, Object... params) {
-        Score from = getScoreFromAddress(getAddress());
-        if ("fallback".equals(method) || "".equals(method)) {
-            transfer(from.getAccount(), targetAddress, value);
-            return null;
-        } else {
-            return call(from.getAccount(), value, targetAddress, method, params);
-        }
-    }
-
-    public void transfer(Account from, Address targetAddress, BigInteger value) {
-        getBlock().increase();
-        var fromBalance = from.getBalance();
-        if (fromBalance.compareTo(value) < 0) {
-            throw new IllegalStateException("OutOfBalance");
-        }
-        var to = Account.getAccount(targetAddress);
-        if (to == null) {
-            throw new IllegalStateException("NoAccount");
-        }
-        from.subtractBalance("ICX", value);
-        to.addBalance("ICX", value);
-        if (targetAddress.isContract()) {
-            call(from, value, targetAddress, "fallback");
-        }
-    }
-
-    public void putStorage(String key, Object value) {
-        putStorage(key, value, value != null ? value.getClass() : null);
-    }
-
-    public void putStorage(String key, Object value, Class<?> clazz) {
-        storageMap.put(getAddress().toString() + key, value);
-        storageClassMap.put(getAddress().toString() + key, clazz);
-    }
-
-    public Object getStorage(String key) {
-        return storageMap.get(getAddress().toString() + key);
-    }
-
-    public Class<?> getStorageClass(String key) {
-        return storageClassMap.get(getAddress().toString() + key);
-    }
-
-    public static class Block {
-        private static Block sInstance;
-
-        private long height;
-        private long timestamp;
-
-        private Block(long height, long timestamp) {
-            this.height = height;
-            this.timestamp = timestamp;
-        }
-
-        public static Block getInstance() {
-            if (sInstance == null) {
-                Random rand = new Random();
-                sInstance = new Block(rand.nextInt(1000), System.nanoTime() / 1000);
-            }
-            return sInstance;
-        }
-
-        public long getHeight() {
-            return height;
-        }
-
-        public long getTimestamp() {
-            return timestamp;
-        }
-
-        public void increase() {
-            increase(1);
-        }
-
-        public void increase(long delta) {
-            height += delta;
-            timestamp += 2_000_000 * delta; // 2 secs block generation
-        }
-    }
-
-    public Block getBlock() {
-        return Block.getInstance();
-    }
-
-    public static class Frame {
-        Account from;
-        Account to;
-        String method;
-        boolean readonly;
-        BigInteger value;
-
-        public Frame(Account from, Account to, boolean readonly, String method, BigInteger value) {
-            this.from = from;
-            this.to = to;
-            this.readonly = readonly;
-            this.method = method;
-            this.value = value;
-        }
-
-        public boolean isReadonly() {
-            return readonly;
-        }
-
-        public BigInteger getValue() {
-            return value;
-        }
-    }
-
-    protected void pushFrame(Account from, Account to, boolean readonly, String method, BigInteger value) {
-        contexts.push(new Frame(from, to, readonly, method, value));
-    }
-
-    protected void popFrame() {
-        contexts.pop();
-    }
-
-    public Frame getCurrentFrame() {
-        return contexts.peek();
-    }
-
-    public Frame getFirstFrame() {
-        return contexts.firstElement();
+        return sInstance;
     }
 }
