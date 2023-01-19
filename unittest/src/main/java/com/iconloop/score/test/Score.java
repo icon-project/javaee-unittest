@@ -57,6 +57,10 @@ public class Score extends TestBase implements AnyDBImpl.ValueStore {
         return sm.call(getAddress(), method, params);
     }
 
+    public <T> T call(Class<T> cls, String method, Object... params) {
+        return sm.call(cls, getAddress(), method, params);
+    }
+
     public void invoke(Account from, String method, Object... params) {
         invoke(from, BigInteger.ZERO, method, params);
     }
