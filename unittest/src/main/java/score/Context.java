@@ -16,6 +16,7 @@
 
 package score;
 
+import com.iconloop.score.test.ManualRevertException;
 import com.iconloop.score.test.TestBase;
 import score.impl.AnyDBImpl;
 import score.impl.Crypto;
@@ -111,11 +112,11 @@ public final class Context extends TestBase {
     }
 
     public static void revert(int code, String message) {
-        throw new UserRevertedException(code, String.format("Reverted(%d): %s", code, message));
+        throw new ManualRevertException(code, String.format("Reverted(%d): %s", code, message));
     }
 
     public static void revert(int code) {
-        throw new UserRevertedException(code, String.format("Reverted(%d)", code));
+        throw new ManualRevertException(code, String.format("Reverted(%d)", code));
     }
 
     public static void revert(String message) {

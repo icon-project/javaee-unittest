@@ -17,6 +17,7 @@
 package score;
 
 import com.iconloop.score.test.Account;
+import com.iconloop.score.test.ManualRevertException;
 import com.iconloop.score.test.OutOfBalanceException;
 import com.iconloop.score.test.Score;
 import com.iconloop.score.test.ServiceManager;
@@ -225,10 +226,12 @@ class ServiceManagerImpl extends ServiceManager implements AnyDBImpl.ValueStore 
         return getCurrentFrame().to.getAddress();
     }
 
+    Account getTarget() { return getCurrentFrame().to; };
+
     private Score getScoreFromAddress(Address target) {
         var score = state.getScore(target);
         if (score == null) {
-            throw new RevertedException("ContractNotFound(addr="+target+")");
+            throw new IllegalArgumentException("ContractNotFound(addr="+target+")");
         }
         return score;
     }
@@ -257,12 +260,17 @@ class ServiceManagerImpl extends ServiceManager implements AnyDBImpl.ValueStore 
     }
 
     Object call(BigInteger value, Address targetAddress, String method, Object... params) {
-        Score from = getScoreFromAddress(getAddress());
-        if ("fallback".equals(method) || "".equals(method)) {
-            handleTransfer(from.getAccount(), targetAddress, value);
-            return null;
+        if (targetAddress.isContract()) {
+            Score from = getScoreFromAddress(getAddress());
+            if ("".equals(method)) {
+                handleTransfer(from.getAccount(), targetAddress, value);
+                return null;
+            } else {
+                return handleCall(from.getAccount(), value, true, false, targetAddress, method, params);
+            }
         } else {
-            return handleCall(from.getAccount(), value, true, false, targetAddress, method, params);
+            handleTransfer(getTarget(), targetAddress, value);
+            return null;
         }
     }
 
@@ -542,11 +550,16 @@ class ServiceManagerImpl extends ServiceManager implements AnyDBImpl.ValueStore 
                     "NoValidMethod(score="+score.getAddress()+",method="+methodName+")");
         } catch (InvocationTargetException e) {
             var target = e.getCause();
-            if (target instanceof UserRevertedException
-                    && getCurrentFrame() != getFirstFrame()) {
-                throw (UserRevertedException) target;
+            if (target instanceof UserRevertException) {
+                // custom exception class by contract
+                var ure = (UserRevertException) target;
+                throw new UserRevertedException(ure.getCode(), target.getMessage(), target);
+            } else if (target instanceof ManualRevertException) {
+                // exception made by Context.revert() APIs
+                var cre = (ManualRevertException) target;
+                throw new UserRevertedException(cre.getCode(), target.getMessage(), target);
             }
-            throw new AssertionError(target.getMessage());
+            throw new RevertedException(target.getMessage(), target);
         }
     }
 
