@@ -250,7 +250,7 @@ public class TypeConverter {
             }
         } else {
             throw new IllegalArgumentException(String.format(
-                    "UnsupportedTargetClass(target=%s)", cls.getName(), so.getClass().getName()));
+                    "UnsupportedTargetClass(target=%s,source=%s)", cls.getName(), so.getClass().getName()));
         }
     }
 
