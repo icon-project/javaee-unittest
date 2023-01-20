@@ -74,7 +74,7 @@ public class Account {
     /**
      * Get stored balance for specified token
      * @param symbol symbol of the token
-     * @return stored balance for the totken
+     * @return stored balance for the token
      */
     public BigInteger getBalance(String symbol) {
         return tokens.getOrDefault(symbol, BigInteger.ZERO);
