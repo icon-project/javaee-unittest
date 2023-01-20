@@ -66,6 +66,7 @@ class ContextTest extends TestBase {
                     (byte[]) helloScore.call("computeHash", algo, data));
         }
     }
+
     @Test
     void getBalance() {
         var exp = BigInteger.TEN.pow(18).multiply(BigInteger.valueOf(100));
@@ -73,5 +74,10 @@ class ContextTest extends TestBase {
         assertEquals(exp, acct.getBalance());
         var balance = Context.getBalance(acct.getAddress());
         assertEquals(exp, balance);
+    }
+
+    @Test
+    void accountEqualsTest() {
+        assertEquals(owner, sm.getAccount(owner.getAddress()));
     }
 }

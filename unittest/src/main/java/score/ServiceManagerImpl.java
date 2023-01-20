@@ -149,7 +149,7 @@ class ServiceManagerImpl extends ServiceManager implements AnyDBImpl.ValueStore 
     private Address nextAddress(boolean isContract) {
         var ba = new byte[Address.LENGTH];
         ba[0] = isContract ? (byte)1 :(byte)0;
-        var seed = nextCount++;
+        var seed = ++nextCount;
         var index = ba.length - 1;
         ba[index--] = (byte) seed;
         ba[index--] = (byte) (seed >> 8);
@@ -165,9 +165,10 @@ class ServiceManagerImpl extends ServiceManager implements AnyDBImpl.ValueStore 
         if (accounts.containsKey(address)) {
             throw new IllegalArgumentException("AlreadyCreatedAccount(addr="+address+")");
         }
-        return new Account(state, address);
+        var acct = new Account(state, address);
+        accounts.put(address, acct);
+        return acct;
     }
-
 
     @Override
     public Account createAccount() {
