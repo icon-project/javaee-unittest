@@ -247,7 +247,7 @@ class ServiceManagerImpl extends ServiceManager implements AnyDBImpl.ValueStore 
     @Override
     public Object call(Account from, BigInteger value, Address targetAddress, String method, Object... params) {
         if (from == null) {
-            throw new NullPointerException("NullPointerException(from is null)");
+            throw new NullPointerException("from is null");
         }
         try (var scope = setupTransactionInfo(true)) {
             return handleCall(from, value, true, false, targetAddress, method, params);
