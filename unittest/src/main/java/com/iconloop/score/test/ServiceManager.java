@@ -86,10 +86,18 @@ public abstract class ServiceManager {
      */
     public abstract void invoke(Account from, BigInteger value, Address targetAddress, String method, Object... params);
 
-    @Deprecated
-    public void call(Account from, BigInteger value, Address targetAddress, String method, Object... params) {
-        this.invoke(from, value, targetAddress, method, params);
-    }
+    /**
+     * Call specified method.
+     * It simulates inter-call(or external-call).
+     * Use {@link #invoke(Account, BigInteger, Address, String, Object...)} for external call.
+     * @param from Contract account for inter-call (EoA account for external-call)
+     * @param value Value to transfer on the call
+     * @param targetAddress Receiver of the call
+     * @param method Name of the method
+     * @param params Parameters for the method
+     * @return Returned value
+     */
+    public abstract Object call(Account from, BigInteger value, Address targetAddress, String method, Object... params);
 
     /**
      * Call specified method for read.
