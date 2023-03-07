@@ -397,7 +397,7 @@ class ServiceManagerImpl extends ServiceManager implements AnyDBImpl.ValueStore 
         public static Block getLast() {
             if (sLast == null) {
                 Random rand = new Random();
-                sLast = new Block(rand.nextInt(1000), System.nanoTime() / 1000);
+                sLast = new Block(rand.nextInt(1000), System.currentTimeMillis() * 1000);
             }
             return sLast;
         }
