@@ -127,7 +127,7 @@ public class TypeConverter {
             for (var rp : rProps) {
                 try {
                     map.put(rp.getName(), normalize(rp.get(so)));
-                } catch (InvocationTargetException e) {
+                } catch (InvocationTargetException|IllegalAccessException e) {
                     throw new IllegalArgumentException(e);
                 }
             }
