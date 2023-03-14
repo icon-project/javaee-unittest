@@ -316,7 +316,7 @@ class ServiceManagerImpl extends ServiceManager implements AnyDBImpl.ValueStore 
 
     long getTransactionTimestamp() {
         var info = txInfo.get();
-        return info != null ? info.getTimestamp() : System.nanoTime() / 1000;
+        return info != null ? info.getTimestamp() : System.currentTimeMillis() * 1000;
     }
 
     @Override
