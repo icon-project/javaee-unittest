@@ -17,6 +17,7 @@
 package score;
 
 import com.iconloop.score.test.Account;
+import com.iconloop.score.test.Event;
 import com.iconloop.score.test.ManualRevertException;
 import com.iconloop.score.test.OutOfBalanceException;
 import com.iconloop.score.test.Score;
@@ -46,6 +47,9 @@ class ServiceManagerImpl extends ServiceManager implements AnyDBImpl.ValueStore 
     private final Map<Address,Account> accounts = new HashMap<>();
 
     private static final ThreadLocal<TransactionInfo> txInfo = new ThreadLocal<>();
+
+    private EventLogger eventLogger = null;
+    private List<Event> lastLogs = null;
 
     static class TransactionInfo {
         private final int index;
@@ -102,13 +106,19 @@ class ServiceManagerImpl extends ServiceManager implements AnyDBImpl.ValueStore 
                     Block.next(),
                     forTx ? 0 : TransactionInfo.kInvalidIndex
             ));
+            eventLogger = new EventLogger();
             return () -> {
                 txInfo.set(null);
+                lastLogs = eventLogger.getLogs();
+                eventLogger = null;
             };
         } else if (forTx) {
             txInfo.set(txi.next());
+            eventLogger = new EventLogger();
         }
         return () -> {
+            lastLogs = eventLogger.getLogs();
+            eventLogger = null;
         };
     }
 
@@ -485,14 +495,17 @@ class ServiceManagerImpl extends ServiceManager implements AnyDBImpl.ValueStore 
     protected void pushFrame(Account from, Account to, boolean readonly, String method, BigInteger value) {
         contexts.push(new Frame(from, to, isReadonly() || readonly, method, value));
         state.push();
+        if (eventLogger != null) eventLogger.push();
     }
 
     protected void popFrame() {
+        if (eventLogger != null) eventLogger.pop();
         state.pop();
         contexts.pop();
     }
 
     void applyFrame() {
+        if (eventLogger != null) eventLogger.apply();
         state.apply();
     }
 
@@ -582,5 +595,17 @@ class ServiceManagerImpl extends ServiceManager implements AnyDBImpl.ValueStore 
             }
         }
         throw new NoSuchMethodException("NoSuchMethod(class="+clazz+",method="+name+")");
+    }
+
+    public void logEvent(Object[] indexed, Object[] data) {
+        if (isReadonly() || eventLogger == null) {
+            throw new IllegalStateException("ReadOnly mode");
+        }
+        eventLogger.addLog(new Event(getAddress(), indexed, data));
+    }
+
+    @Override
+    public List<Event> getLastEventLogs() {
+        return lastLogs;
     }
 }

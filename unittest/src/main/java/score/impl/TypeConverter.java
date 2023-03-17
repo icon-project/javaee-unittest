@@ -256,6 +256,19 @@ public class TypeConverter {
         }
     }
 
+    public static boolean isValidEventValue(Object obj) {
+        if (obj == null
+                || obj instanceof BigInteger
+                || obj instanceof Boolean
+                || obj instanceof String
+                || obj instanceof Address) {
+            return true;
+        }
+        // check byte[] type.
+        var clz = obj.getClass();
+        return clz.isArray() && clz.getComponentType() == Byte.TYPE;
+    }
+
     public static byte[] toBytes(Object v) {
         if (v == null) {
             return null;
