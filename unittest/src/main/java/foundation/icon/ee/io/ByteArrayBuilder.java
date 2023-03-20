@@ -1,4 +1,4 @@
-package foundation.icon.ee.io.io;
+package foundation.icon.ee.io;
 
 import java.io.OutputStream;
 import java.util.Arrays;

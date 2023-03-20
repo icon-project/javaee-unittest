@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package foundation.icon.ee.io.io;
+package foundation.icon.ee.io;
 
 import java.math.BigInteger;
 import java.nio.ByteBuffer;

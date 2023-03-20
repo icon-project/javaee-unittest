@@ -18,10 +18,10 @@ package score;
 
 import com.iconloop.score.test.ManualRevertException;
 import com.iconloop.score.test.TestBase;
-import foundation.icon.ee.io.io.RLPDataReader;
-import foundation.icon.ee.io.io.RLPDataWriter;
-import foundation.icon.ee.io.io.RLPNDataReader;
-import foundation.icon.ee.io.io.RLPNDataWriter;
+import foundation.icon.ee.io.RLPDataReader;
+import foundation.icon.ee.io.RLPDataWriter;
+import foundation.icon.ee.io.RLPNDataReader;
+import foundation.icon.ee.io.RLPNDataWriter;
 import score.impl.AnyDBImpl;
 import score.impl.Crypto;
 import score.impl.ObjectReaderImpl;

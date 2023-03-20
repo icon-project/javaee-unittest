@@ -16,7 +16,7 @@
 
 package score.impl;
 
-import foundation.icon.ee.io.io.DataReader;
+import foundation.icon.ee.io.DataReader;
 import score.Address;
 import score.ObjectReader;
 

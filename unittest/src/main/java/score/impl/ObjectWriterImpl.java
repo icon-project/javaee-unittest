@@ -16,7 +16,7 @@
 
 package score.impl;
 
-import foundation.icon.ee.io.io.DataWriter;
+import foundation.icon.ee.io.DataWriter;
 import score.Address;
 import score.ByteArrayObjectWriter;
 import score.ObjectWriter;
