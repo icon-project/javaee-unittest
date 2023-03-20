@@ -32,49 +32,86 @@ public class EventImplementTest {
 
     private static ServiceManager sm = ServiceManager.getInstance();
 
-//    @EventImplement
-    public static class Contract {
-
+    @EventImplement
+    public static class DataOnlyContract {
         @External
-        public void invoke(String arg1, String arg2) {
+        public void emit(String arg1, String arg2) {
+            Context.println("arg1:"+arg1+",arg2:"+arg2);
             DataOnly(arg1, arg2);
-            IndexedOnly(arg1, arg2);
-            IndexedAndData(arg1, arg2);
         }
         @EventLog
         public void DataOnly(String arg1, String arg2) {}
+    }
+    public static class IndexedOnlyContract {
+        @External
+        public void emit(String arg1, String arg2) {
+            Context.println("arg1:"+arg1+",arg2:"+arg2);
+            IndexedOnly(arg1, arg2);
+        }
 
         @EventLog(indexed = 2)
         public void IndexedOnly(String arg1, String arg2) {}
+    }
+
+    public static class IndexedAndDataContract {
+        @External
+        public void emit(String arg1, String arg2) {
+            Context.println("arg1:"+arg1+",arg2:"+arg2);
+            IndexedAndData(arg1, arg2);
+        }
 
         @EventLog(indexed = 1)
         public void IndexedAndData(String arg1, String arg2) {}
     }
 
     private static Account owner = sm.createAccount();
-    private static Score score;
+    private static Score dataOnlyScore;
+    private static Score indexedOnlyScore;
+    private static Score indexedAndDataScore;
 
+    @EventImplement(IndexedOnlyContract.class)
+    @EventImplement(value = IndexedAndDataContract.class, suffix = "EventImpl")
     @BeforeAll
     static void setup() throws Exception {
-        score = sm.deploy(owner, EventImplementTestContractEI.class);
+        dataOnlyScore = sm.deploy(owner, EventImplementTestDataOnlyContractEI.class);
+        indexedOnlyScore = sm.deploy(owner, EventImplementTestIndexedOnlyContractEI.class);
+        indexedAndDataScore = sm.deploy(owner, EventImplementTestIndexedAndDataContractEventImpl.class);
     }
 
-    @EventImplement("score.EventImplementTest.Contract")
     @Test
-    public void invoke() {
-        score.invoke(owner, "invoke", "a", "b");
+    public void emitDataOnly() {
+        String arg1 = "a";
+        String arg2 = "b";
+        dataOnlyScore.invoke(owner, "emit", arg1, arg2);
         var logs = sm.getLastEventLogs();
         assertTrue(logs.contains(new Event(
-                score.getAddress(),
+                dataOnlyScore.getAddress(),
                 new Object[]{"DataOnly(str,str)"},
-                new Object[]{"a","b"})));
-        assertTrue(logs.contains(new Event(
-                score.getAddress(),
-                new Object[]{"IndexedOnly(str,str)","a","b"},
-                new Object[]{})));
-        assertTrue(logs.contains(new Event(
-                score.getAddress(),
-                new Object[]{"IndexedAndData(str,str)","a"},
-                new Object[]{"b"})));
+                new Object[]{arg1,arg2})));
     }
+
+    @Test
+    public void emitIndexedOnly() {
+        String arg1 = "a";
+        String arg2 = "b";
+        indexedOnlyScore.invoke(owner, "emit", arg1, arg2);
+        var logs = sm.getLastEventLogs();
+        assertTrue(logs.contains(new Event(
+                indexedOnlyScore.getAddress(),
+                new Object[]{"IndexedOnly(str,str)",arg1,arg2},
+                new Object[]{})));
+    }
+
+    @Test
+    public void emitIndexedAndData() {
+        String arg1 = "a";
+        String arg2 = "b";
+        indexedAndDataScore.invoke(owner, "emit", arg1, arg2);
+        var logs = sm.getLastEventLogs();
+        assertTrue(logs.contains(new Event(
+                indexedAndDataScore.getAddress(),
+                new Object[]{"IndexedAndData(str,str)",arg1},
+                new Object[]{arg2})));
+    }
+
 }

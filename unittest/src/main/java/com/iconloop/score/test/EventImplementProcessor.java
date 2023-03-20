@@ -22,6 +22,7 @@ import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.JavaFile;
 import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.ParameterSpec;
+import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
 import foundation.icon.annotation_processor.AbstractProcessor;
 import foundation.icon.annotation_processor.ProcessorUtil;
@@ -30,26 +31,31 @@ import score.annotation.EventLog;
 
 import javax.annotation.processing.RoundEnvironment;
 import javax.lang.model.SourceVersion;
+import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.AnnotationValue;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import java.io.IOException;
+import java.lang.annotation.Annotation;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.StringJoiner;
 import java.util.stream.Collectors;
 
 public class EventImplementProcessor extends AbstractProcessor {
 
-    private Set<TypeElement> processed = new HashSet<>();
+    private Set<ClassName> processed = new HashSet<>();
 
     @Override
     public Set<String> getSupportedAnnotationTypes() {
@@ -64,25 +70,54 @@ public class EventImplementProcessor extends AbstractProcessor {
         return SourceVersion.latestSupported();
     }
 
+    static AnnotationMirror getAnnotationMirror(Element element, Class<? extends Annotation> annClass) {
+        for(AnnotationMirror am : element.getAnnotationMirrors()) {
+            if (TypeName.get(am.getAnnotationType()).toString().equals(annClass.getName())) {
+                return am;
+            }
+        }
+        return null;
+    }
+
+    static Object getAnnotationValue(AnnotationMirror am, String annMethod) {
+        Objects.requireNonNull(am);
+        for(Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry : am.getElementValues().entrySet()) {
+            if (entry.getKey().getSimpleName().toString().equals(annMethod)) {
+                return entry.getValue().getValue();
+            }
+        }
+        return null;
+    }
+
+    @SuppressWarnings({"unchecked"})
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
         boolean ret = false;
         for (TypeElement annotation : annotations) {
             Set<? extends Element> annotationElements = roundEnv.getElementsAnnotatedWith(annotation);
             for (Element element : annotationElements) {
-                EventImplements anns = element.getAnnotation(EventImplements.class);
-                if (anns != null) {
-                    for (EventImplement ann : anns.value()) {
-                        if (ann.value().isEmpty()){
-                            throw new RuntimeException("target is required, element:" + element);
+                EventImplements annContainer = element.getAnnotation(EventImplements.class);
+                if (annContainer != null) {
+                    EventImplement[] anns = annContainer.value();
+                    List<AnnotationMirror> ams = (List<AnnotationMirror>)getAnnotationValue(
+                            getAnnotationMirror(element, EventImplements.class), "value");
+                    if (ams == null || anns.length != ams.size()) {
+                        throw new RuntimeException("invalid list of AnnotationMirror element:"+element);
+                    }
+                    for (int i = 0; i < ams.size(); i++) {
+                        AnnotationMirror am = ams.get(i);
+                        DeclaredType clazz = (DeclaredType)getAnnotationValue(am, "value");
+                        if (clazz == null) {
+                            throw new RuntimeException("value is required, element:" + element);
                         }
-                        TypeElement typeElement = elementUtil.getTypeElement(ann.value());
-                        generateImplementClass(ann, typeElement);
+                        generateImplementClass(anns[i], (TypeElement)clazz.asElement());
                     }
                 } else {
                     EventImplement ann = element.getAnnotation(EventImplement.class);
-                    TypeElement typeElement = ann.value().isEmpty() ?
-                            (TypeElement)element : elementUtil.getTypeElement(ann.value());
+                    DeclaredType clazz = (DeclaredType)getAnnotationValue(
+                            getAnnotationMirror(element, EventImplement.class), "value");
+                    TypeElement typeElement = clazz == null ?
+                            (TypeElement)element : (TypeElement)clazz.asElement();
                     generateImplementClass(ann, typeElement);
                 }
                 ret = true;
@@ -94,12 +129,12 @@ public class EventImplementProcessor extends AbstractProcessor {
         if (!typeElement.getKind().isClass()) {
             throw new RuntimeException("not support, element:" + typeElement);
         }
-        if (processed.contains(typeElement)) {
-            return;
-        }
-        processed.add(typeElement);
         ClassName className = ClassName.get(ClassName.get(typeElement).packageName(),
                 generateClassSimpleName(typeElement) + ann.suffix());
+        if (processed.contains(className)) {
+            return;
+        }
+        processed.add(className);
         messager.noteMessage("process %s to %s", typeElement.asType(), className);
         TypeSpec typeSpec = typeSpec(className, typeElement);
         JavaFile javaFile = JavaFile.builder(className.packageName(), typeSpec).build();

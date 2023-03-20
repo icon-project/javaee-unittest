@@ -26,6 +26,6 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.SOURCE)
 @Repeatable(EventImplements.class)
 public @interface EventImplement {
-    String value() default "";
+    Class<?> value() default EventImplement.class;
     String suffix() default "EI";
 }
