@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 PARAMETA Inc.
+ * Copyright 2023 PARAMETA Corp.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,15 +17,11 @@
 package com.iconloop.score.test;
 
 import java.lang.annotation.ElementType;
-import java.lang.annotation.Repeatable;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-@Target({ElementType.TYPE, ElementType.METHOD})
-@Retention(RetentionPolicy.SOURCE)
-@Repeatable(EventImplements.class)
-public @interface EventImplement {
-    Class<?> value() default EventImplement.class;
-    String suffix() default "EI";
+@Target(ElementType.PARAMETER)
+@Retention(RetentionPolicy.RUNTIME)
+public @interface TOptional {
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 PARAMETA Inc.
+ * Copyright 2023 PARAMETA Corp.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,6 +28,9 @@ import foundation.icon.annotation_processor.AbstractProcessor;
 import foundation.icon.annotation_processor.ProcessorUtil;
 import score.Context;
 import score.annotation.EventLog;
+import score.annotation.External;
+import score.annotation.Optional;
+import score.annotation.Payable;
 
 import javax.annotation.processing.RoundEnvironment;
 import javax.lang.model.SourceVersion;
@@ -53,15 +56,15 @@ import java.util.Set;
 import java.util.StringJoiner;
 import java.util.stream.Collectors;
 
-public class EventImplementProcessor extends AbstractProcessor {
+public class GenerateTScoreProcessor extends AbstractProcessor {
 
     private Set<ClassName> processed = new HashSet<>();
 
     @Override
     public Set<String> getSupportedAnnotationTypes() {
         Set<String> s = new HashSet<>();
-        s.add(EventImplements.class.getCanonicalName());
-        s.add(EventImplement.class.getCanonicalName());
+        s.add(GenerateTScores.class.getCanonicalName());
+        s.add(GenerateTScore.class.getCanonicalName());
         return s;
     }
 
@@ -71,7 +74,7 @@ public class EventImplementProcessor extends AbstractProcessor {
     }
 
     static AnnotationMirror getAnnotationMirror(Element element, Class<? extends Annotation> annClass) {
-        for(AnnotationMirror am : element.getAnnotationMirrors()) {
+        for (AnnotationMirror am : element.getAnnotationMirrors()) {
             if (TypeName.get(am.getAnnotationType()).toString().equals(annClass.getName())) {
                 return am;
             }
@@ -81,7 +84,7 @@ public class EventImplementProcessor extends AbstractProcessor {
 
     static Object getAnnotationValue(AnnotationMirror am, String annMethod) {
         Objects.requireNonNull(am);
-        for(Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry : am.getElementValues().entrySet()) {
+        for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry : am.getElementValues().entrySet()) {
             if (entry.getKey().getSimpleName().toString().equals(annMethod)) {
                 return entry.getValue().getValue();
             }
@@ -96,28 +99,28 @@ public class EventImplementProcessor extends AbstractProcessor {
         for (TypeElement annotation : annotations) {
             Set<? extends Element> annotationElements = roundEnv.getElementsAnnotatedWith(annotation);
             for (Element element : annotationElements) {
-                EventImplements annContainer = element.getAnnotation(EventImplements.class);
+                GenerateTScores annContainer = element.getAnnotation(GenerateTScores.class);
                 if (annContainer != null) {
-                    EventImplement[] anns = annContainer.value();
-                    List<AnnotationMirror> ams = (List<AnnotationMirror>)getAnnotationValue(
-                            getAnnotationMirror(element, EventImplements.class), "value");
+                    GenerateTScore[] anns = annContainer.value();
+                    List<AnnotationMirror> ams = (List<AnnotationMirror>) getAnnotationValue(
+                            getAnnotationMirror(element, GenerateTScores.class), "value");
                     if (ams == null || anns.length != ams.size()) {
-                        throw new RuntimeException("invalid list of AnnotationMirror element:"+element);
+                        throw new RuntimeException("invalid list of AnnotationMirror element:" + element);
                     }
                     for (int i = 0; i < ams.size(); i++) {
                         AnnotationMirror am = ams.get(i);
-                        DeclaredType clazz = (DeclaredType)getAnnotationValue(am, "value");
+                        DeclaredType clazz = (DeclaredType) getAnnotationValue(am, "value");
                         if (clazz == null) {
                             throw new RuntimeException("value is required, element:" + element);
                         }
-                        generateImplementClass(anns[i], (TypeElement)clazz.asElement());
+                        generateImplementClass(anns[i], (TypeElement) clazz.asElement());
                     }
                 } else {
-                    EventImplement ann = element.getAnnotation(EventImplement.class);
-                    DeclaredType clazz = (DeclaredType)getAnnotationValue(
-                            getAnnotationMirror(element, EventImplement.class), "value");
+                    GenerateTScore ann = element.getAnnotation(GenerateTScore.class);
+                    DeclaredType clazz = (DeclaredType) getAnnotationValue(
+                            getAnnotationMirror(element, GenerateTScore.class), "value");
                     TypeElement typeElement = clazz == null ?
-                            (TypeElement)element : (TypeElement)clazz.asElement();
+                            (TypeElement) element : (TypeElement) clazz.asElement();
                     generateImplementClass(ann, typeElement);
                 }
                 ret = true;
@@ -125,7 +128,8 @@ public class EventImplementProcessor extends AbstractProcessor {
         }
         return ret;
     }
-    private void generateImplementClass(EventImplement ann, TypeElement typeElement) {
+
+    private void generateImplementClass(GenerateTScore ann, TypeElement typeElement) {
         if (!typeElement.getKind().isClass()) {
             throw new RuntimeException("not support, element:" + typeElement);
         }
@@ -158,20 +162,16 @@ public class EventImplementProcessor extends AbstractProcessor {
         TypeSpec.Builder builder = TypeSpec
                 .classBuilder(className)
                 .addModifiers(Modifier.PUBLIC)
+                .addAnnotation(TScore.class)
                 .superclass(typeElement.asType());
         for (Element enclosedElement : typeElement.getEnclosedElements()) {
             if (enclosedElement.getKind().equals(ElementKind.CONSTRUCTOR)) {
                 ExecutableElement ee = (ExecutableElement) enclosedElement;
-                List<ParameterSpec> params = ProcessorUtil.getParameterSpecs(ee);
-                StringJoiner stringJoiner = new StringJoiner(",");
-                params.forEach((v) -> {
-                    stringJoiner.add(v.name);
-                });
                 builder.addMethod(
                         MethodSpec.constructorBuilder()
                                 .addModifiers(ee.getModifiers())
-                                .addParameters(params)
-                                .addStatement("super($L)", stringJoiner.toString())
+                                .addParameters(ProcessorUtil.getParameterSpecs(ee))
+                                .addStatement("super($L)", paramJoin(paramNames(ee)))
                                 .build());
             }
         }
@@ -189,31 +189,74 @@ public class EventImplementProcessor extends AbstractProcessor {
         }
         for (Element enclosedElement : typeElement.getEnclosedElements()) {
             if (enclosedElement.getKind().equals(ElementKind.METHOD)) {
-                EventLog ann = enclosedElement.getAnnotation(EventLog.class);
-                if (ann != null) {
-                    ExecutableElement ee = (ExecutableElement) enclosedElement;
-                    List<String> params = ee.getParameters().stream()
-                            .map(v -> v.getSimpleName().toString())
-                            .collect(Collectors.toList());
-                    if (ann.indexed() < 0 || ann.indexed() > params.size()) {
-                        throw new IndexOutOfBoundsException(String.format("indexed in %s.%s",
-                                typeElement.getSimpleName(), enclosedElement.getSimpleName()));
-                    }
-                    List<String> indexed = new ArrayList<>();
-                    indexed.add(eventSignature(ee));
-                    MethodSpec.Builder builder = MethodSpec.overriding((ExecutableElement) enclosedElement)
-                            .addAnnotation(AnnotationSpec.builder(EventLog.class).addMember("indexed", "$L", ann.indexed()).build());
-                    if (ann.indexed() > 0) {
-                        indexed.addAll(params.subList(0, ann.indexed()));
-                        params = params.subList(ann.indexed(), params.size());
-                    }
-                    builder.addStatement("$T.logEvent($L, $L)",
-                            Context.class, objectArray(indexed), objectArray(params));
-                    addMethod(methods, builder.build(), typeElement);
-                }
+                ExecutableElement ee = (ExecutableElement) enclosedElement;
+                addMethod(methods, eventMethodSpec(ee, typeElement), typeElement);
+                addMethod(methods, externalMethodSpec(ee, typeElement), typeElement);
             }
         }
         return methods;
+    }
+
+    private MethodSpec eventMethodSpec(ExecutableElement ee, TypeElement typeElement) {
+        EventLog ann = ee.getAnnotation(EventLog.class);
+        if (ann != null) {
+            List<String> params = paramNames(ee);
+            if (ann.indexed() < 0 || ann.indexed() > params.size()) {
+                throw new IndexOutOfBoundsException(String.format("indexed in %s.%s",
+                        typeElement.getSimpleName(), ee.getSimpleName()));
+            }
+            List<String> indexed = new ArrayList<>();
+            indexed.add(eventSignature(ee));
+            MethodSpec.Builder builder = MethodSpec.overriding(ee)
+                    .addAnnotation(AnnotationSpec.builder(EventLog.class).addMember("indexed", "$L", ann.indexed()).build());
+            if (ann.indexed() > 0) {
+                indexed.addAll(params.subList(0, ann.indexed()));
+                params = params.subList(ann.indexed(), params.size());
+            }
+            builder.addStatement("$T.logEvent($L, $L)",
+                    Context.class, objectArray(indexed), objectArray(params));
+            return builder.build();
+        }
+        return null;
+    }
+
+    private MethodSpec externalMethodSpec(ExecutableElement ee, TypeElement typeElement) {
+        External ann = ee.getAnnotation(External.class);
+        if (ann != null) {
+            boolean readonly = ann.readonly();
+            boolean payable = ee.getAnnotation(Payable.class) != null;
+            if (readonly && payable) {
+                throw new RuntimeException(String.format("readonly method cannot be payable, %s.%s",
+                        typeElement.getSimpleName(), ee.getSimpleName()));
+            }
+            TypeName returnType = TypeName.get(ee.getReturnType());
+            MethodSpec.Builder builder = MethodSpec.methodBuilder(ee.getSimpleName().toString())
+                    .addModifiers(ee.getModifiers())
+                    .addParameters(ee.getParameters().stream().map(v -> {
+                        if (v.getAnnotation(Optional.class) != null) {
+                            return ParameterSpec.builder(TypeName.get(v.asType()), v.getSimpleName().toString())
+                                    .addModifiers(v.getModifiers())
+                                    .addAnnotation(TOptional.class)
+                                    .build();
+                        } else {
+                            return ParameterSpec.get(v);
+                        }
+                    }).collect(Collectors.toList()))
+                    .returns(returnType)
+                    .addAnnotation(AnnotationSpec.builder(TExternal.class)
+                            .addMember("readonly", "$L", readonly)
+                            .addMember("payable", "$L", payable)
+                            .build());
+            if (returnType.equals(TypeName.VOID)) {
+                builder.addStatement("super.$L($L)",
+                        ee.getSimpleName(), paramJoin(paramNames(ee)));
+            } else {
+                builder.addStatement("return super.$L($L)",
+                        ee.getSimpleName(), paramJoin(paramNames(ee)));
+            }
+            return builder.build();
+        }
+        return null;
     }
 
     private void addMethods(List<MethodSpec> methods, List<MethodSpec> methodSpecs, TypeElement element) {
@@ -224,11 +267,11 @@ public class EventImplementProcessor extends AbstractProcessor {
 
     private void addMethod(List<MethodSpec> methods, MethodSpec methodSpec, TypeElement typeElement) {
         if (methodSpec != null) {
-            CodeBlock indexed = eventIndexed(methodSpec);
             MethodSpec conflictMethod = ProcessorUtil.getConflictMethod(methods, methodSpec);
             if (conflictMethod != null) {
                 methods.remove(conflictMethod);
-                if (!indexed.equals(eventIndexed(conflictMethod))) {
+                CodeBlock indexed = eventIndexed(methodSpec);
+                if (indexed != null && !indexed.equals(eventIndexed(conflictMethod))) {
                     messager.warningMessage(
                             "Redeclare '%s %s(%s)' in %s",
                             conflictMethod.returnType.toString(),
@@ -244,7 +287,8 @@ public class EventImplementProcessor extends AbstractProcessor {
     private CodeBlock eventIndexed(MethodSpec methodSpec) {
         return methodSpec.annotations.stream()
                 .filter((ann) -> ann.type.toString().equals(EventLog.class.getName()))
-                .findAny().orElseThrow().members.get("indexed").get(0);
+                .findAny()
+                .map((ann) -> ann.members.get("indexed").get(0)).orElse(null);
     }
 
     private static final Map<String, String> eventTypeStrings = Map.of(
@@ -264,8 +308,8 @@ public class EventImplementProcessor extends AbstractProcessor {
         for (VariableElement ve : ee.getParameters()) {
             String eventTypeString = eventTypeStrings.get(ve.asType().toString());
             if (eventTypeString == null) {
-                throw new RuntimeException("not allowed event parameter type, element:" +
-                        ee.getEnclosingElement() + ", method:" + ee + ", argument:" + ve.getSimpleName());
+                throw new RuntimeException(String.format("not allowed event parameter type, %s of %s.%s",
+                        ve.getSimpleName(), ee.getEnclosingElement().getSimpleName(), ee.getSimpleName()));
             }
             stringJoiner.add(eventTypeString);
         }
@@ -273,11 +317,21 @@ public class EventImplementProcessor extends AbstractProcessor {
                 ee.getSimpleName(), stringJoiner);
     }
 
-    private String objectArray(List<String> names) {
+    private List<String> paramNames(ExecutableElement ee) {
+        return ee.getParameters().stream()
+                .map(v -> v.getSimpleName().toString())
+                .collect(Collectors.toList());
+    }
+
+    private String paramJoin(List<String> names) {
         StringJoiner stringJoiner = new StringJoiner(", ");
         for (String name : names) {
             stringJoiner.add(name);
         }
-        return "new Object[]{" + stringJoiner + "}";
+        return stringJoiner.toString();
+    }
+
+    private String objectArray(List<String> names) {
+        return "new Object[]{" + paramJoin(names) + "}";
     }
 }
