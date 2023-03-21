@@ -16,8 +16,8 @@
 
 package score.impl;
 
-import foundation.icon.ee.io.io.RLPNDataReader;
-import foundation.icon.ee.io.io.RLPNDataWriter;
+import foundation.icon.ee.io.RLPNDataReader;
+import foundation.icon.ee.io.RLPNDataWriter;
 import score.Address;
 import score.impl.struct.Property;
 

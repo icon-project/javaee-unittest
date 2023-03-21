@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package foundation.icon.ee.io.io;
+package foundation.icon.ee.io;
 
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
@@ -35,7 +35,7 @@ public abstract class AbstractRLPDataWriter implements DataWriter {
     }
 
     protected abstract byte[] toByteArray(BigInteger bi);
-    protected abstract void writeNull(ByteArrayBuilder os);
+    protected abstract void writeNullity(ByteArrayBuilder os, boolean nullity);
 
     private void writeRLPString(byte[] bs) {
         int l = bs.length;
@@ -128,9 +128,7 @@ public abstract class AbstractRLPDataWriter implements DataWriter {
     }
 
     public void writeNullity(boolean nullity) {
-        if (nullity) {
-            writeNull(os);
-        }
+        writeNullity(os, nullity);
     }
 
     public void writeListHeader(int l) {

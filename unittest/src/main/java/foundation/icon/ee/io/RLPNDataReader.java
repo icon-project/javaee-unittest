@@ -14,31 +14,28 @@
  * limitations under the License.
  */
 
-package foundation.icon.ee.io.io;
+package foundation.icon.ee.io;
 
 import java.math.BigInteger;
 
-public class RLPDataReader extends AbstractRLPDataReader implements DataReader {
-    public RLPDataReader(byte[] data) {
+public class RLPNDataReader extends AbstractRLPDataReader implements DataReader {
+    public RLPNDataReader(byte[] data) {
         super(data);
     }
 
     @Override
-    protected int readNull(byte[] ba, int offset, int len) {
+    protected int peekNull(byte[] ba, int offset, int len, boolean forRead) {
+        if (len < 2) {
+            return 0;
+        }
+        if (ba[offset] == (byte) 0xf8 && (ba[offset + 1] == 0)) {
+            return 2;
+        }
         return 0;
     }
 
     @Override
-    protected BigInteger readBigInteger(byte[] ba, int offset, int len) {
-        if (len == 0) {
-            return BigInteger.ZERO;
-        }
-        // interpret as positive integer
-        if (len > 0 && ((int)ba[offset] & 0x80) != 0) {
-            var ba2 = new byte[len+1];
-            System.arraycopy(ba, offset, ba2, 1, len);
-            return new BigInteger(ba2);
-        }
+    protected BigInteger peekBigInteger(byte[] ba, int offset, int len) {
         return new BigInteger(ba, offset, len);
     }
 }
