@@ -33,7 +33,7 @@ public class RLPDataWriter extends AbstractRLPDataWriter implements DataWriter {
     }
 
     @Override
-    protected void writeNull(ByteArrayBuilder os) {
-        throw new NullPointerException("null in RLP Codec");
+    protected void writeNullity(ByteArrayBuilder os, boolean nullity) {
+        throw new UnsupportedOperationException("Cannot write null or nullable in RLP codec");
     }
 }

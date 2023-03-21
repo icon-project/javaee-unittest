@@ -24,21 +24,18 @@ public class RLPDataReader extends AbstractRLPDataReader implements DataReader {
     }
 
     @Override
-    protected int readNull(byte[] ba, int offset, int len) {
+    protected int peekNull(byte[] ba, int offset, int len, boolean forRead) {
+        if (forRead) {
+            throw new UnsupportedOperationException("Cannot read null or nullable in RLP codec");
+        }
         return 0;
     }
 
     @Override
-    protected BigInteger readBigInteger(byte[] ba, int offset, int len) {
+    protected BigInteger peekBigInteger(byte[] ba, int offset, int len) {
         if (len == 0) {
             return BigInteger.ZERO;
         }
-        // interpret as positive integer
-        if (len > 0 && ((int)ba[offset] & 0x80) != 0) {
-            var ba2 = new byte[len+1];
-            System.arraycopy(ba, offset, ba2, 1, len);
-            return new BigInteger(ba2);
-        }
-        return new BigInteger(ba, offset, len);
+        return new BigInteger(1, ba, offset, len);
     }
 }

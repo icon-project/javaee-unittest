@@ -50,8 +50,8 @@ public abstract class AbstractRLPDataReader implements DataReader {
      * return the length of null representation if there is null. 0 if there
      * is no null.
      */
-    protected abstract int readNull(byte[] ba, int offset, int len);
-    protected abstract BigInteger readBigInteger(byte[] ba, int offset, int len);
+    protected abstract int peekNull(byte[] ba, int offset, int len, boolean forRead);
+    protected abstract BigInteger peekBigInteger(byte[] ba, int offset, int len);
 
     private void readRLPString() {
         var b = peek();
@@ -121,9 +121,9 @@ public abstract class AbstractRLPDataReader implements DataReader {
         }
     }
 
-    private boolean peekRLPNull(int b) {
+    private boolean peekRLPNull(int b, boolean forRead) {
         var p = bb.arrayOffset() + bb.position();
-        var n = readNull(arr, p, bb.limit() - p);
+        var n = peekNull(arr, p, bb.limit() - p, forRead);
         if (n>0) {
             o = bb.position() + n;
             l = 0;
@@ -179,7 +179,7 @@ public abstract class AbstractRLPDataReader implements DataReader {
     public BigInteger readBigInteger() {
         readRLPString();
         var offset = bb.arrayOffset() + o;
-        return readBigInteger(arr, offset, l);
+        return peekBigInteger(arr, offset, l);
     }
 
     public String readString() {
@@ -201,7 +201,7 @@ public abstract class AbstractRLPDataReader implements DataReader {
     public void skip(int count) {
         for (int i = 0; i < count; i++) {
             var b = peek();
-            if (!peekRLPNull(b)) {
+            if (!peekRLPNull(b, false)) {
                 if (b < 0xc0) {
                     peekRLPString(b);
                 } else {
@@ -244,7 +244,7 @@ public abstract class AbstractRLPDataReader implements DataReader {
 
     private boolean tryReadNull() {
         var b = peek();
-        if (!peekRLPNull(b)) {
+        if (!peekRLPNull(b, true)) {
             return false;
         }
         bb.position(o + l);
