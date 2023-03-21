@@ -243,6 +243,7 @@ public class GenerateTScoreProcessor extends AbstractProcessor {
                         }
                     }).collect(Collectors.toList()))
                     .returns(returnType)
+                    .addAnnotation(Override.class)
                     .addAnnotation(AnnotationSpec.builder(TExternal.class)
                             .addMember("readonly", "$L", readonly)
                             .addMember("payable", "$L", payable)
