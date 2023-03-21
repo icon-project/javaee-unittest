@@ -14,6 +14,7 @@ dependencies {
     implementation 'org.ow2.asm:asm-util:7.0'
     implementation 'org.ow2.asm:asm:7.0'
     implementation 'org.ow2.asm:asm-commons:7.0'
+    implementation 'foundation.icon:blst-java:0.3.0'
 
     testImplementation 'foundation.icon:javaee-scorex:0.5.3'
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.9.0'

@@ -1,4 +1,5 @@
 /*
+ * Copyright 2023 PARAMETA Corp.
  * Copyright 2021 ICONLOOP Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,7 +25,9 @@ import org.bouncycastle.jcajce.provider.digest.Keccak;
 import org.bouncycastle.math.ec.ECAlgorithms;
 import org.bouncycastle.math.ec.ECPoint;
 import org.bouncycastle.math.ec.custom.sec.SecP256K1Curve;
+import org.bouncycastle.math.ec.rfc8032.Ed25519;
 import org.bouncycastle.util.BigIntegers;
+import score.impl.bls12381.BLS12381;
 
 import java.math.BigInteger;
 import java.security.MessageDigest;
@@ -76,12 +79,24 @@ public class Crypto {
     }
 
     public static boolean verifySignature(String alg, byte[] msg, byte[] sig, byte[] pk) {
-        if ("ecdsa-secp256k1".equals(alg)) {
-            require(msg.length == 32, "the length of message must be 32");
-            require(sig.length == 65, "the length of signature must be 65");
-            require(pk.length == 33 || pk.length == 65, "invalid public key length");
-            var recovered = recoverECDSAKey(msg, sig, pk.length == 33);
-            return Arrays.equals(recovered, pk);
+        switch (alg) {
+            case "ed25519": {
+                require(sig.length == Ed25519.SIGNATURE_SIZE, "invalid signature length");
+                require(pk.length == Ed25519.PUBLIC_KEY_SIZE, "invalid public key length");
+                return Ed25519.verify(sig, 0, pk, 0, msg, 0, msg.length);
+            }
+            case "ecdsa-secp256k1": {
+                require(msg.length == 32, "the length of message must be 32");
+                require(sig.length == 65, "the length of signature must be 65");
+                require(pk.length == 33 || pk.length == 65, "invalid public key length");
+                var recovered = recoverECDSAKey(msg, sig, pk.length == 33);
+                return Arrays.equals(recovered, pk);
+            }
+            case "bls12-381-g2": {
+                require(pk.length == BLS12381.G1_LEN, "invalid public key length");
+                require(sig.length == BLS12381.G2_LEN, "invalid signature length");
+                return BLS12381.verifyG2Signature(pk, sig, msg);
+            }
         }
         throw new IllegalArgumentException("Unsupported algorithm " + alg);
     }
@@ -93,6 +108,17 @@ public class Crypto {
             return recoverECDSAKey(msg, sig, compressed);
         }
         throw new IllegalArgumentException("Unsupported algorithm " + alg);
+    }
+
+    public static byte[] aggregate(String type, byte[] prevAgg, byte[] values) {
+        switch (type) {
+            case "bls12-381-g1": {
+                require(prevAgg == null || prevAgg.length == BLS12381.G1_LEN, "invalid prevAgg");
+                require(values.length % BLS12381.G1_LEN == 0, "invalid values length");
+                return BLS12381.aggregateG1Values(prevAgg, values);
+            }
+        }
+        throw new IllegalArgumentException("Unsupported type " + type);
     }
 
     private static byte[] recoverECDSAKey(byte[] msgHash, byte[] signature, boolean compressed) {

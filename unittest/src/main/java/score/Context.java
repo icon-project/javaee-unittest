@@ -1,4 +1,5 @@
 /*
+ * Copyright 2023 PARAMETA Corp.
  * Copyright 2020 ICONLOOP Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -166,6 +167,12 @@ public final class Context extends TestBase {
         require(msg.length == 32, "the length of msg must be 32");
         require(sig.length == 65, "the length of sig must be 65");
         return Crypto.recoverKey(alg, msg, sig, compressed);
+    }
+
+    public static byte[] aggregate(String type, byte[] prevAgg, byte[] values) {
+        require(null != type, "Type can't be NULL");
+        require(null != values, "Values can't be NULL");
+        return Crypto.aggregate(type, prevAgg, values);
     }
 
     public static Address getAddressFromKey(byte[] pubKey) {
