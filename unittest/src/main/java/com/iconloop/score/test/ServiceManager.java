@@ -156,6 +156,11 @@ public abstract class ServiceManager {
      */
     public abstract Block getBlock();
 
+    /**
+     * Get event logs of the last transaction.
+     * @see GenerateTScore
+     * @return list of events
+     */
     public abstract List<Event> getLastEventLogs();
 
 
