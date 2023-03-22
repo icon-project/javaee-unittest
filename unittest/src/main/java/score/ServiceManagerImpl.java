@@ -22,6 +22,9 @@ import com.iconloop.score.test.ManualRevertException;
 import com.iconloop.score.test.OutOfBalanceException;
 import com.iconloop.score.test.Score;
 import com.iconloop.score.test.ServiceManager;
+import com.iconloop.score.test.TExternal;
+import com.iconloop.score.test.TOptional;
+import com.iconloop.score.test.TScore;
 import com.iconloop.score.test.WorldState;
 import score.impl.AnyDBImpl;
 import score.impl.Crypto;
@@ -37,6 +40,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Stack;
+import java.util.stream.Collectors;
 
 class ServiceManagerImpl extends ServiceManager implements AnyDBImpl.ValueStore {
     private static final BigInteger ICX = BigInteger.TEN.pow(18);
@@ -299,6 +303,64 @@ class ServiceManagerImpl extends ServiceManager implements AnyDBImpl.ValueStore 
             throw new IllegalArgumentException("value is negative");
         }
         Score score = getScoreFromAddress(targetAddress);
+        Method scoreMethod;
+        var scoreClass = score.getInstance().getClass();
+        try {
+            scoreMethod = getMethodByName(scoreClass, method);
+        } catch (NoSuchMethodException e) {
+            throw new IllegalArgumentException(
+                    "NoValidMethod(score="+score.getAddress()+",method="+method+")");
+        }
+        if (scoreClass.isAnnotationPresent(TScore.class)) {
+            // reject calling internal method
+            var external = scoreMethod.getAnnotation(TExternal.class);
+            if (external==null) {
+                throw new IllegalArgumentException(
+                        "NotExternal(score="+score.getAddress()+",method="+method+")"
+                );
+            }
+
+            // reject calling writable in readonly context
+            if (isReadonly() && !external.readonly()) {
+                throw new IllegalArgumentException(
+                        "PermissionDenied(score="+score.getAddress()+",method="+method+")"
+                );
+            }
+            readonly |= external.readonly();
+
+            // check payable
+            if (!external.payable() && value.signum()>0) {
+                throw new IllegalArgumentException(
+                        "NotPayable(score="+score.getAddress()+",method="+method+")"
+                );
+            }
+
+            // optional parameter check.
+            var parameterAnnotations = scoreMethod.getParameterAnnotations();
+            int minParams = parameterAnnotations.length;
+            for (int i=0 ; i<parameterAnnotations.length ; i++) {
+                if (Arrays.stream(parameterAnnotations[i])
+                        .filter((a)->(a.annotationType().equals(TOptional.class)))
+                        .findAny().isPresent()) {
+                    if (i < minParams) {
+                        minParams = i;
+                    } else {
+                        throw new IllegalArgumentException(
+                                "InvalidOptionalTag(score=" + score.getAddress() + ",method=" + method + ")"
+                        );
+                    }
+                }
+            }
+            if (params.length < minParams) {
+                throw new IllegalArgumentException(
+                        "NotEnoughParams(score=" + score.getAddress()
+                                + ",method=" + method
+                                + ",min=" + minParams
+                                + ",given=" + params.length
+                                + ")"
+                );
+            }
+        }
         Account to = score.getAccount();
         pushFrame(from, to, readonly, method, value);
         try {
@@ -563,9 +625,8 @@ class ServiceManagerImpl extends ServiceManager implements AnyDBImpl.ValueStore 
     private Object invokeMethod(Score score, String methodName, Object[] params) {
         try {
             var scoreObj = score.getInstance();
-            Method method = getMethodByName(scoreObj, methodName);
+            Method method = getMethodByName(scoreObj.getClass(), methodName);
             Object[] methodParameters = convertParameters(method, params);
-
             var result = method.invoke(scoreObj, methodParameters);
             return result;
         } catch (NoSuchMethodException | IllegalAccessException e) {
@@ -586,8 +647,7 @@ class ServiceManagerImpl extends ServiceManager implements AnyDBImpl.ValueStore 
         }
     }
 
-    private static Method getMethodByName(Object score, String name) throws NoSuchMethodException {
-        Class<?> clazz = score.getClass();
+    private static Method getMethodByName(Class<?> clazz, String name) throws NoSuchMethodException {
         Method[] m = clazz.getMethods();
         for (Method method : m) {
             if (method.getName().equals(name)) {

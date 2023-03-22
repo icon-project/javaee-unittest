@@ -83,6 +83,15 @@ public class TScoreTest {
             varDB.set(value);
         }
 
+        @External
+        public void writableMethod2(String value) {
+            varDB.set(value);
+        }
+
+        public void writableMethodInternal(String value) {
+            varDB.set(value);
+        }
+
         @Payable
         @External
         public void payableMethod() {
@@ -140,8 +149,18 @@ public class TScoreTest {
         contract.invoke(owner, "writableMethod", arg);
         assertEquals(arg, contract.call(String.class, "readonlyMethod"));
 
+        // invoke skipping optional
         contract.invoke(owner, "writableMethod");
         assertNull(contract.call(String.class, "readonlyMethod"));
+
+        // invoke with fewer parameters
+        assertThrows(IllegalArgumentException.class, ()-> {
+            contract.invoke(owner, "writableMethod2");
+        });
+
+        String arg2 = "value";
+        contract.invoke(owner, "writableMethod2", arg2);
+        assertEquals(arg2, contract.call(String.class, "readonlyMethod"));
 
         Account caller = sm.createAccount(10);
         BigInteger value = BigInteger.ONE;
@@ -152,5 +171,15 @@ public class TScoreTest {
                 contract.getAddress(),
                 new Object[]{"EventMethod(Address,int)", caller.getAddress()},
                 new Object[]{value})));
+
+        // calling non-payable with a value
+        assertThrows(IllegalArgumentException.class, ()-> {
+            contract.invoke(owner, value, "writableMethod2", arg2);
+        });
+
+        // accessing non-external method
+        assertThrows(IllegalArgumentException.class, ()-> {
+            contract.invoke(owner, "writableMethodInternal", arg2);
+        });
     }
 }
