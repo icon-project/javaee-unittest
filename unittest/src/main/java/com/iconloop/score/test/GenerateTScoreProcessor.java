@@ -229,19 +229,30 @@ public class GenerateTScoreProcessor extends AbstractProcessor {
                 throw new RuntimeException(String.format("readonly method cannot be payable, %s.%s",
                         typeElement.getSimpleName(), ee.getSimpleName()));
             }
+            boolean mustOptional = false;
+            List<ParameterSpec> params = new ArrayList<>();
+            for (VariableElement ve : ee.getParameters()) {
+                ParameterSpec param;
+                if (ve.getAnnotation(Optional.class) != null) {
+                    param = ParameterSpec.builder(TypeName.get(ve.asType()), ve.getSimpleName().toString())
+                            .addModifiers(ve.getModifiers())
+                            .addAnnotation(TOptional.class)
+                            .build();
+                    mustOptional = true;
+                } else {
+                    if (mustOptional) {
+                        throw new RuntimeException(String.format("parameter should be optional, %s of %s.%s",
+                                ve.getSimpleName(), typeElement.getSimpleName(), ee.getSimpleName()));
+                    }
+                    param = ParameterSpec.get(ve);
+                }
+                params.add(param);
+            }
+
             TypeName returnType = TypeName.get(ee.getReturnType());
             MethodSpec.Builder builder = MethodSpec.methodBuilder(ee.getSimpleName().toString())
                     .addModifiers(ee.getModifiers())
-                    .addParameters(ee.getParameters().stream().map(v -> {
-                        if (v.getAnnotation(Optional.class) != null) {
-                            return ParameterSpec.builder(TypeName.get(v.asType()), v.getSimpleName().toString())
-                                    .addModifiers(v.getModifiers())
-                                    .addAnnotation(TOptional.class)
-                                    .build();
-                        } else {
-                            return ParameterSpec.get(v);
-                        }
-                    }).collect(Collectors.toList()))
+                    .addParameters(params)
                     .returns(returnType)
                     .addAnnotation(Override.class)
                     .addAnnotation(AnnotationSpec.builder(TExternal.class)
