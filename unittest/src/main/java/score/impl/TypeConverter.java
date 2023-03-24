@@ -269,6 +269,14 @@ public class TypeConverter {
         return clz.isArray() && clz.getComponentType() == Byte.TYPE;
     }
 
+    public static Object[] asEventObjects(Object[] objs) {
+        Object[] normalized = new Object[objs.length];
+        for (int i = 0; i < objs.length; i++) {
+            normalized[i] = normalize(objs[i]);
+        }
+        return normalized;
+    }
+
     public static byte[] toBytes(Object v) {
         if (v == null) {
             return null;

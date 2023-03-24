@@ -38,25 +38,27 @@ public class TScoreTest {
 
     public static class DataOnlyContract {
         @External
-        public void emit(String arg1, String arg2) {
-            Context.println("arg1:" + arg1 + ",arg2:" + arg2);
-            DataOnly(arg1, arg2);
+        public void emit(String arg1, short arg2, int arg3, long arg4) {
+            Context.println("arg1:" + arg1 + ",arg2:" + arg2 +
+                    ",arg3:" + arg3 + ",arg4:" + arg4);
+            DataOnly(arg1, arg2, arg3, arg4);
         }
 
         @EventLog
-        public void DataOnly(String arg1, String arg2) {
+        public void DataOnly(String arg1, short arg2, int arg3, long arg4) {
         }
     }
 
     public static class IndexedOnlyContract {
         @External
-        public void emit(String arg1, String arg2) {
-            Context.println("arg1:" + arg1 + ",arg2:" + arg2);
-            IndexedOnly(arg1, arg2);
+        public void emit(byte[] arg1, byte arg2, char arg3, boolean arg4) {
+            Context.println("arg1:" + new String(arg1) + ",arg2:" + arg2 +
+                    ",arg3:" + arg3 + ",arg4:" + arg4);
+            IndexedOnly(arg1, arg2, arg3, arg4);
         }
 
-        @EventLog(indexed = 2)
-        public void IndexedOnly(String arg1, String arg2) {
+        @EventLog(indexed = 4)
+        public void IndexedOnly(byte[] arg1, byte arg2, char arg3, boolean arg4) {
         }
     }
 
@@ -118,24 +120,29 @@ public class TScoreTest {
 
     @Test
     public void emitDataOnly() {
-        String arg1 = "a";
-        String arg2 = "b";
-        dataOnlyScore.invoke(owner, "emit", arg1, arg2);
+        String arg1 = "stringValue";
+        short arg2 = 0x2;
+        int arg3 = 0x3;
+        long arg4 = 0x4;
+        dataOnlyScore.invoke(owner, "emit", arg1, arg2, arg3, arg4);
         var logs = sm.getLastEventLogs();
         assertTrue(logs.contains(new Event(
                 dataOnlyScore.getAddress(),
-                new Object[]{"DataOnly(str,str)"},
-                new Object[]{arg1, arg2})));
+                new Object[]{"DataOnly(str,int,int,int)"},
+                new Object[]{arg1, BigInteger.valueOf(arg2),
+                        BigInteger.valueOf(arg3),BigInteger.valueOf(arg4)})));
     }
 
     @Test
     public void emitIndexedOnly() {
-        String arg1 = "a";
-        String arg2 = "b";
-        indexedOnlyClient.emit(arg1, arg2);
+        byte[] arg1 = "bytesValue".getBytes();
+        byte arg2 = 0x2;
+        char arg3 = '3';
+        boolean arg4 = true;
+        indexedOnlyClient.emit(arg1, arg2, arg3, arg4);
         var logs = sm.getLastEventLogs();
         assertTrue(logs.contains(
-                indexedOnlyClient.IndexedOnly(arg1, arg2)));
+                indexedOnlyClient.IndexedOnly(arg1, arg2, arg3, arg4)));
     }
 
     @Test

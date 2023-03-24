@@ -31,6 +31,7 @@ import score.annotation.EventLog;
 import score.annotation.External;
 import score.annotation.Optional;
 import score.annotation.Payable;
+import score.impl.TypeConverter;
 
 import javax.annotation.processing.RoundEnvironment;
 import javax.lang.model.SourceVersion;
@@ -215,8 +216,9 @@ public class GenerateTScoreProcessor extends AbstractProcessor {
                 indexed.addAll(params.subList(0, ann.indexed()));
                 params = params.subList(ann.indexed(), params.size());
             }
-            builder.addStatement("$T.logEvent($L, $L)",
-                    Context.class, objectArray(indexed), objectArray(params));
+            builder.addStatement("$T.logEvent($T.asEventObjects($L), $T.asEventObjects($L))",
+                    Context.class, TypeConverter.class, objectArray(indexed),
+                    TypeConverter.class, objectArray(params));
             return builder.build();
         }
         return null;
@@ -438,12 +440,14 @@ public class GenerateTScoreProcessor extends AbstractProcessor {
             } else {
                 boolean isEvent = method.annotations.stream().anyMatch(a -> a.type.equals(eventAnnName));
                 if (isEvent) {
+                    String code = method.code.toString().replace("score.Context.logEvent(",
+                            String.format("return new Event(this.%s.getAddress(), ", FILED_SCORE));
+                    code = code.replace(TypeConverter.class.getName(), TypeConverter.class.getSimpleName());
                     builder.addMethod(MethodSpec.methodBuilder(method.name)
                             .addModifiers(method.modifiers)
                             .addParameters(method.parameters)
                             .returns(Event.class)
-                            .addCode(method.code.toString().replace("score.Context.logEvent(",
-                                    String.format("return new Event(this.%s.getAddress(), ", FILED_SCORE)))
+                            .addCode(code)
                             .build());
                 }
             }
