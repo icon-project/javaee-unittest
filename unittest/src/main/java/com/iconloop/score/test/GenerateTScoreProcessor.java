@@ -47,6 +47,7 @@ import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -176,6 +177,7 @@ public class GenerateTScoreProcessor extends AbstractProcessor {
             }
         }
         builder.addMethods(overrideMethods(typeElement));
+        builder.addType(clientTypeSpec(className, builder.methodSpecs));
         return builder.build();
     }
 
@@ -345,5 +347,114 @@ public class GenerateTScoreProcessor extends AbstractProcessor {
 
     private String objectArray(List<String> names) {
         return "new Object[]{" + paramJoin(names) + "}";
+    }
+
+    static TypeName externalAnnName = TypeName.get(TExternal.class);
+    static TypeName eventAnnName = TypeName.get(EventLog.class);
+
+    private TypeSpec clientTypeSpec(ClassName tScoreClassName, List<MethodSpec> methods) {
+        ClassName className = tScoreClassName.nestedClass("Client");
+        String FILED_SCORE = "score";
+        String FILED_FROM = "from";
+        TypeSpec.Builder builder = TypeSpec
+                .classBuilder(className)
+                .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
+                .addField(Score.class, FILED_SCORE, Modifier.PRIVATE)
+                .addField(Account.class, FILED_FROM, Modifier.PRIVATE)
+                .addMethod(MethodSpec.constructorBuilder()
+                        .addModifiers(Modifier.PUBLIC)
+                        .addParameter(Score.class, FILED_SCORE)
+                        .addStatement("this($L, null)", FILED_SCORE)
+                        .build())
+                .addMethod(MethodSpec.constructorBuilder()
+                        .addModifiers(Modifier.PUBLIC)
+                        .addParameter(Score.class, FILED_SCORE)
+                        .addParameter(Account.class, FILED_FROM)
+                        .addStatement("this.$L = $L", FILED_SCORE, FILED_SCORE)
+                        .addStatement("this.$L = $L == null ? $L.getOwner() : $L",
+                                FILED_FROM, FILED_FROM, FILED_SCORE, FILED_FROM)
+                        .build());
+        List<ParameterSpec> constructorParams = methods.stream()
+                .filter(MethodSpec::isConstructor)
+                .findFirst()
+                .map(m -> m.parameters)
+                .orElse(new ArrayList<>());
+        MethodSpec.Builder deployMethodBuilder = MethodSpec.methodBuilder("deploy")
+                .addModifiers(Modifier.STATIC)
+                .addException(Exception.class)
+                .addParameter(ServiceManager.class, "sm")
+                .addParameter(Account.class, "caller")
+                .addParameters(constructorParams)
+                .returns(className);
+        if (constructorParams.size() == 0) {
+            deployMethodBuilder.addStatement("return new $T(sm.deploy(caller, $T.class))", className, tScoreClassName);
+        } else {
+            deployMethodBuilder.addStatement("return new $T(sm.deploy(caller, $T.class, $L))", className, tScoreClassName,
+                    paramJoin(constructorParams.stream().map(p -> p.name).collect(Collectors.toList())));
+        }
+        builder.addMethod(deployMethodBuilder.build());
+        builder.addMethod(MethodSpec.methodBuilder(FILED_SCORE)
+                .addModifiers(Modifier.PUBLIC)
+                .addStatement("return $L", FILED_SCORE)
+                .returns(Score.class)
+                .build());
+        builder.addMethod(MethodSpec.methodBuilder(FILED_FROM)
+                .addModifiers(Modifier.PUBLIC)
+                .addParameter(Account.class, FILED_FROM)
+                .addStatement("return new $T($L, $L)", className, FILED_SCORE, FILED_FROM)
+                .returns(className)
+                .build());
+
+        for (MethodSpec method : methods) {
+            AnnotationSpec ann = method.annotations.stream().filter(a -> a.type.equals(externalAnnName)).findAny().orElse(null);
+            if (ann != null) {
+                MethodSpec.Builder externalMethodBuilder = MethodSpec.methodBuilder(method.name)
+                        .addModifiers(method.modifiers)
+                        .returns(method.returnType);
+                boolean readonly = ann.members.get("readonly").get(0).toString().equals("true");
+                boolean payable = ann.members.get("payable").get(0).toString().equals("true");
+                List<String> paramNames = method.parameters.stream().map(p -> p.name).collect(Collectors.toList());
+                String params = paramJoin(paramNames);
+                if (paramNames.size() > 0) {
+                    params = ", " + params;
+                }
+                if (readonly) {
+                    externalMethodBuilder.addStatement("return this.$L.call($T.class, \"$L\"$L)",
+                            FILED_SCORE, method.returnType, method.name, params);
+                } else {
+                    if (payable) {
+                        String PARAM_VALUE = resolveName(paramNames, "valueForPayable");
+                        externalMethodBuilder.addParameter(ParameterSpec.builder(BigInteger.class, PARAM_VALUE).build());
+                        externalMethodBuilder.addStatement("this.$L.invoke(this.$L, $L, \"$L\"$L)",
+                                FILED_SCORE, FILED_FROM, PARAM_VALUE, method.name, params);
+                    } else {
+                        externalMethodBuilder.addStatement("this.$L.invoke(this.$L, \"$L\"$L)",
+                                FILED_SCORE, FILED_FROM, method.name, params);
+                    }
+                }
+                builder.addMethod(externalMethodBuilder
+                        .addParameters(method.parameters)
+                        .build());
+            } else {
+                boolean isEvent = method.annotations.stream().anyMatch(a -> a.type.equals(eventAnnName));
+                if (isEvent) {
+                    builder.addMethod(MethodSpec.methodBuilder(method.name)
+                            .addModifiers(method.modifiers)
+                            .addParameters(method.parameters)
+                            .returns(Event.class)
+                            .addCode(method.code.toString().replace("score.Context.logEvent(",
+                                    String.format("return new Event(this.%s.getAddress(), ", FILED_SCORE)))
+                            .build());
+                }
+            }
+        }
+        return builder.build();
+    }
+
+    private String resolveName(List<String> names, String name) {
+        if (names.contains(name)) {
+            return resolveName(names, "_" + name);
+        }
+        return name;
     }
 }

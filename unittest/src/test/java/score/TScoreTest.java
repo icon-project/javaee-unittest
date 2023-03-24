@@ -105,14 +105,15 @@ public class TScoreTest {
 
     private static Account owner = sm.createAccount();
     private static Score dataOnlyScore;
-    private static Score indexedOnlyScore;
+    private static TScoreTestIndexedOnlyContractTScore.Client indexedOnlyClient;
 
     @GenerateTScore(DataOnlyContract.class)
     @GenerateTScore(value = IndexedOnlyContract.class, suffix = "TScore")
     @BeforeAll
     static void setup() throws Exception {
         dataOnlyScore = sm.deploy(owner, TScoreTestDataOnlyContractTS.class);
-        indexedOnlyScore = sm.deploy(owner, TScoreTestIndexedOnlyContractTScore.class);
+        indexedOnlyClient = new TScoreTestIndexedOnlyContractTScore.Client(
+                sm.deploy(owner, TScoreTestIndexedOnlyContractTScore.class));
     }
 
     @Test
@@ -131,55 +132,51 @@ public class TScoreTest {
     public void emitIndexedOnly() {
         String arg1 = "a";
         String arg2 = "b";
-        indexedOnlyScore.invoke(owner, "emit", arg1, arg2);
+        indexedOnlyClient.emit(arg1, arg2);
         var logs = sm.getLastEventLogs();
-        assertTrue(logs.contains(new Event(
-                indexedOnlyScore.getAddress(),
-                new Object[]{"IndexedOnly(str,str)", arg1, arg2},
-                new Object[]{})));
+        assertTrue(logs.contains(
+                indexedOnlyClient.IndexedOnly(arg1, arg2)));
     }
 
     @Test
     public void contractTest() throws Exception {
         String constructorArg = "init";
-        Score contract = sm.deploy(owner, TScoreTestContractTS.class, constructorArg);
-        assertEquals(constructorArg, contract.call("readonlyMethod"));
+        TScoreTestContractTS.Client client = TScoreTestContractTS.Client.deploy(sm, owner, constructorArg);
+        assertEquals(constructorArg, client.readonlyMethod());
 
         String arg = "value";
-        contract.invoke(owner, "writableMethod", arg);
-        assertEquals(arg, contract.call(String.class, "readonlyMethod"));
+        client.writableMethod(arg);
+        assertEquals(arg, client.readonlyMethod());
 
         // invoke skipping optional
-        contract.invoke(owner, "writableMethod");
-        assertNull(contract.call(String.class, "readonlyMethod"));
+        client.writableMethod(null);
+        assertNull(client.readonlyMethod());
 
         // invoke with fewer parameters
         assertThrows(IllegalArgumentException.class, ()-> {
-            contract.invoke(owner, "writableMethod2");
+            client.score().invoke(owner, "writableMethod2");
         });
 
         String arg2 = "value";
-        contract.invoke(owner, "writableMethod2", arg2);
-        assertEquals(arg2, contract.call(String.class, "readonlyMethod"));
+        client.writableMethod2(arg2);
+        assertEquals(arg2, client.readonlyMethod());
 
         Account caller = sm.createAccount(10);
         BigInteger value = BigInteger.ONE;
-        contract.invoke(caller, value, "payableMethod");
+        client.from(caller).payableMethod(value);
 
         var logs = sm.getLastEventLogs();
-        assertTrue(logs.contains(new Event(
-                contract.getAddress(),
-                new Object[]{"EventMethod(Address,int)", caller.getAddress()},
-                new Object[]{value})));
+        Event expectedEvent = client.EventMethod(caller.getAddress(), value);
+        assertTrue(logs.contains(expectedEvent));
 
         // calling non-payable with a value
         assertThrows(IllegalArgumentException.class, ()-> {
-            contract.invoke(owner, value, "writableMethod2", arg2);
+            client.score().invoke(owner, value, "writableMethod2", arg2);
         });
 
         // accessing non-external method
         assertThrows(IllegalArgumentException.class, ()-> {
-            contract.invoke(owner, "writableMethodInternal", arg2);
+            client.score().invoke(owner, "writableMethodInternal", arg2);
         });
     }
 }
