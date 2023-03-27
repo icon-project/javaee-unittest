@@ -34,7 +34,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class TScoreTest {
 
-    private static ServiceManager sm = ServiceManager.getInstance();
+    private static final ServiceManager sm = ServiceManager.getInstance();
 
     public static class DataOnlyContract {
         @External
@@ -105,7 +105,7 @@ public class TScoreTest {
         }
     }
 
-    private static Account owner = sm.createAccount();
+    private static final Account owner = sm.createAccount();
     private static Score dataOnlyScore;
     private static TScoreTestIndexedOnlyContractTScore.Client indexedOnlyClient;
 

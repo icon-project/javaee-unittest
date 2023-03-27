@@ -40,7 +40,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Stack;
-import java.util.stream.Collectors;
 
 class ServiceManagerImpl extends ServiceManager implements AnyDBImpl.ValueStore {
     private static final BigInteger ICX = BigInteger.TEN.pow(18);
@@ -241,7 +240,7 @@ class ServiceManagerImpl extends ServiceManager implements AnyDBImpl.ValueStore 
         return getCurrentFrame().to.getAddress();
     }
 
-    Account getTarget() { return getCurrentFrame().to; };
+    Account getTarget() { return getCurrentFrame().to; }
 
     private Score getScoreFromAddress(Address target) {
         var score = state.getScore(target);
@@ -340,8 +339,7 @@ class ServiceManagerImpl extends ServiceManager implements AnyDBImpl.ValueStore 
             int minParams = parameterAnnotations.length;
             for (int i=0 ; i<parameterAnnotations.length ; i++) {
                 if (Arrays.stream(parameterAnnotations[i])
-                        .filter((a)->(a.annotationType().equals(TOptional.class)))
-                        .findAny().isPresent()) {
+                        .anyMatch((a)->(a.annotationType().equals(TOptional.class)))) {
                     if (i < minParams) {
                         minParams = i;
                     } else {
@@ -627,8 +625,7 @@ class ServiceManagerImpl extends ServiceManager implements AnyDBImpl.ValueStore 
             var scoreObj = score.getInstance();
             Method method = getMethodByName(scoreObj.getClass(), methodName);
             Object[] methodParameters = convertParameters(method, params);
-            var result = method.invoke(scoreObj, methodParameters);
-            return result;
+            return method.invoke(scoreObj, methodParameters);
         } catch (NoSuchMethodException | IllegalAccessException e) {
             throw new IllegalArgumentException(
                     "NoValidMethod(score="+score.getAddress()+",method="+methodName+")");

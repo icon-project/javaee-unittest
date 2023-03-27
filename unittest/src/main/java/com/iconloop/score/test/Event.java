@@ -20,9 +20,9 @@ import score.Address;
 import score.impl.TypeConverter;
 
 public class Event {
-    private Address contract;
-    private Object[] indexed;
-    private Object[] data;
+    private final Address contract;
+    private final Object[] indexed;
+    private final Object[] data;
 
     public static final Object[] EMPTY = new Object[0];
 

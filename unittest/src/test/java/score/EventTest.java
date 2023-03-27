@@ -22,15 +22,15 @@ import org.junit.jupiter.api.Test;
 import score.annotation.External;
 
 import java.math.BigInteger;
-import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 public class EventTest {
-    private static Address addr1 = Address.fromString("cx1234000000000000000000000000000000000000");
-    private static Address addr2 = Address.fromString("cx1235000000000000000000000000000000000000");
+    private static final Address addr1 = Address.fromString("cx1234000000000000000000000000000000000000");
+    private static final Address addr2 = Address.fromString("cx1235000000000000000000000000000000000000");
+
     @Test
-    void testContructor() {
+    void testConstructor() {
         assertDoesNotThrow(() -> {
             new Event(
                     addr1,
