@@ -23,17 +23,17 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * GenerateTStore make annotation processor generate SCORE class for testing.
- * You may use the generated class for deployment in unittest framework for
- * following extra features in unittest.
+ * {@code @GenerateTScore} is used to generate a wrapper SCORE class for testing.
+ * If you deploy the generated SCORE class using the unittest framework,
+ * the following additional features are available.
  * <ul>
  * <li>Log a proper event on calling the method tagged with {@link score.annotation.EventLog}</li>
- * <li>Check method is properly tagged with {@link score.annotation.External} and {@link score.annotation.Payable}</li>
- * <li>Check parameter is properly tagged with {@link score.annotation.Optional}</li>
+ * <li>Check if a method is properly tagged with {@link score.annotation.External} and {@link score.annotation.Payable}</li>
+ * <li>Check if a parameter is properly tagged with {@link score.annotation.Optional}</li>
  * </ul>
- * For this, the class and its methods should not be final to be extended by generated SCORE class.
+ * For this, the class and its methods should be non-final in order to be extended by the generated SCORE class.
  *
- * The following is your contract implementation.
+ * <p>For example, the following is your contract implementation.
  * <pre>
  * public class MyContract {
  *     public MyContract() { }
@@ -45,8 +45,8 @@ import java.lang.annotation.Target;
  * }
  * </pre>
  *
- * Then you may deploy the contract with generated SCORE class in the test.
- *
+ * Then you may deploy the contract with the generated SCORE class in the unittest.
+ * Note that the default suffix for the generated class is <em>TS</em>.
  * <pre>
  * public class MyContractTest {
  *     &#64;Test
@@ -57,7 +57,7 @@ import java.lang.annotation.Target;
  * }
  * </pre>
  *
- * Of course, you may use the class as it is without extra features.
+ * Of course, you may use the class as is, without any additional features.
  */
 @Target({ElementType.TYPE, ElementType.METHOD})
 @Retention(RetentionPolicy.SOURCE)

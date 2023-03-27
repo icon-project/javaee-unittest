@@ -22,8 +22,8 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * TExternal is used in generated SCORE class by {@link GenerateTScore}.
- * Represent that the method is exported method.
+ * {@code @TExternal} is used in the generated SCORE class by {@link GenerateTScore}.
+ * Represent that the method is an exported method.
  */
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)

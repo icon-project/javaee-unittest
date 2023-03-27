@@ -22,8 +22,8 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * TScore is used in generated SCORE class by {@link GenerateTScore}.
- * Represent that the class is generated class by annotation processor.
+ * {@code @TScore} is used in the generated SCORE class by {@link GenerateTScore}.
+ * Represent that the class is a generated class by the annotation processor.
  */
 @Target({ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)

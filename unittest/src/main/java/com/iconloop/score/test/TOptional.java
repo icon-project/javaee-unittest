@@ -22,8 +22,8 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * TOptional is used in generated SCORE class by {@link GenerateTScore}.
- * Represent that the parameter is optional parameter.
+ * {@code @TOptional} is used in the generated SCORE class by {@link GenerateTScore}.
+ * Represent that the parameter is an optional parameter.
  */
 @Target(ElementType.PARAMETER)
 @Retention(RetentionPolicy.RUNTIME)
