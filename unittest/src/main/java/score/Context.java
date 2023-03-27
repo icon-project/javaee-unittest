@@ -208,6 +208,7 @@ public final class Context extends TestBase {
     }
 
     public static void logEvent(Object[] indexed, Object[] data) {
+        sm.logEvent(indexed, data);
     }
 
     public static ObjectReader newByteArrayObjectReader(String codec, byte[] byteArray) {

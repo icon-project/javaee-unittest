@@ -17,10 +17,14 @@
 package score;
 
 import com.iconloop.score.test.Account;
+import com.iconloop.score.test.Event;
 import com.iconloop.score.test.ManualRevertException;
 import com.iconloop.score.test.OutOfBalanceException;
 import com.iconloop.score.test.Score;
 import com.iconloop.score.test.ServiceManager;
+import com.iconloop.score.test.TExternal;
+import com.iconloop.score.test.TOptional;
+import com.iconloop.score.test.TScore;
 import com.iconloop.score.test.WorldState;
 import score.impl.AnyDBImpl;
 import score.impl.Crypto;
@@ -46,6 +50,9 @@ class ServiceManagerImpl extends ServiceManager implements AnyDBImpl.ValueStore 
     private final Map<Address,Account> accounts = new HashMap<>();
 
     private static final ThreadLocal<TransactionInfo> txInfo = new ThreadLocal<>();
+
+    private EventLogger eventLogger = null;
+    private List<Event> lastLogs = null;
 
     static class TransactionInfo {
         private final int index;
@@ -102,13 +109,19 @@ class ServiceManagerImpl extends ServiceManager implements AnyDBImpl.ValueStore 
                     Block.next(),
                     forTx ? 0 : TransactionInfo.kInvalidIndex
             ));
+            eventLogger = new EventLogger();
             return () -> {
                 txInfo.set(null);
+                lastLogs = eventLogger.getLogs();
+                eventLogger = null;
             };
         } else if (forTx) {
             txInfo.set(txi.next());
+            eventLogger = new EventLogger();
         }
         return () -> {
+            lastLogs = eventLogger.getLogs();
+            eventLogger = null;
         };
     }
 
@@ -227,7 +240,7 @@ class ServiceManagerImpl extends ServiceManager implements AnyDBImpl.ValueStore 
         return getCurrentFrame().to.getAddress();
     }
 
-    Account getTarget() { return getCurrentFrame().to; };
+    Account getTarget() { return getCurrentFrame().to; }
 
     private Score getScoreFromAddress(Address target) {
         var score = state.getScore(target);
@@ -289,6 +302,63 @@ class ServiceManagerImpl extends ServiceManager implements AnyDBImpl.ValueStore 
             throw new IllegalArgumentException("value is negative");
         }
         Score score = getScoreFromAddress(targetAddress);
+        Method scoreMethod;
+        var scoreClass = score.getInstance().getClass();
+        try {
+            scoreMethod = getMethodByName(scoreClass, method);
+        } catch (NoSuchMethodException e) {
+            throw new IllegalArgumentException(
+                    "NoValidMethod(score="+score.getAddress()+",method="+method+")");
+        }
+        if (scoreClass.isAnnotationPresent(TScore.class)) {
+            // reject calling internal method
+            var external = scoreMethod.getAnnotation(TExternal.class);
+            if (external==null) {
+                throw new IllegalArgumentException(
+                        "NotExternal(score="+score.getAddress()+",method="+method+")"
+                );
+            }
+
+            // reject calling writable in readonly context
+            if (isReadonly() && !external.readonly()) {
+                throw new IllegalArgumentException(
+                        "PermissionDenied(score="+score.getAddress()+",method="+method+")"
+                );
+            }
+            readonly |= external.readonly();
+
+            // check payable
+            if (!external.payable() && value.signum()>0) {
+                throw new IllegalArgumentException(
+                        "NotPayable(score="+score.getAddress()+",method="+method+")"
+                );
+            }
+
+            // optional parameter check.
+            var parameterAnnotations = scoreMethod.getParameterAnnotations();
+            int minParams = parameterAnnotations.length;
+            for (int i=0 ; i<parameterAnnotations.length ; i++) {
+                if (Arrays.stream(parameterAnnotations[i])
+                        .anyMatch((a)->(a.annotationType().equals(TOptional.class)))) {
+                    if (i < minParams) {
+                        minParams = i;
+                    } else {
+                        throw new IllegalArgumentException(
+                                "InvalidOptionalTag(score=" + score.getAddress() + ",method=" + method + ")"
+                        );
+                    }
+                }
+            }
+            if (params.length < minParams) {
+                throw new IllegalArgumentException(
+                        "NotEnoughParams(score=" + score.getAddress()
+                                + ",method=" + method
+                                + ",min=" + minParams
+                                + ",given=" + params.length
+                                + ")"
+                );
+            }
+        }
         Account to = score.getAccount();
         pushFrame(from, to, readonly, method, value);
         try {
@@ -485,14 +555,17 @@ class ServiceManagerImpl extends ServiceManager implements AnyDBImpl.ValueStore 
     protected void pushFrame(Account from, Account to, boolean readonly, String method, BigInteger value) {
         contexts.push(new Frame(from, to, isReadonly() || readonly, method, value));
         state.push();
+        if (eventLogger != null) eventLogger.push();
     }
 
     protected void popFrame() {
+        if (eventLogger != null) eventLogger.pop();
         state.pop();
         contexts.pop();
     }
 
     void applyFrame() {
+        if (eventLogger != null) eventLogger.apply();
         state.apply();
     }
 
@@ -550,11 +623,9 @@ class ServiceManagerImpl extends ServiceManager implements AnyDBImpl.ValueStore 
     private Object invokeMethod(Score score, String methodName, Object[] params) {
         try {
             var scoreObj = score.getInstance();
-            Method method = getMethodByName(scoreObj, methodName);
+            Method method = getMethodByName(scoreObj.getClass(), methodName);
             Object[] methodParameters = convertParameters(method, params);
-
-            var result = method.invoke(scoreObj, methodParameters);
-            return result;
+            return method.invoke(scoreObj, methodParameters);
         } catch (NoSuchMethodException | IllegalAccessException e) {
             throw new IllegalArgumentException(
                     "NoValidMethod(score="+score.getAddress()+",method="+methodName+")");
@@ -573,8 +644,7 @@ class ServiceManagerImpl extends ServiceManager implements AnyDBImpl.ValueStore 
         }
     }
 
-    private static Method getMethodByName(Object score, String name) throws NoSuchMethodException {
-        Class<?> clazz = score.getClass();
+    private static Method getMethodByName(Class<?> clazz, String name) throws NoSuchMethodException {
         Method[] m = clazz.getMethods();
         for (Method method : m) {
             if (method.getName().equals(name)) {
@@ -582,5 +652,17 @@ class ServiceManagerImpl extends ServiceManager implements AnyDBImpl.ValueStore 
             }
         }
         throw new NoSuchMethodException("NoSuchMethod(class="+clazz+",method="+name+")");
+    }
+
+    public void logEvent(Object[] indexed, Object[] data) {
+        if (isReadonly() || eventLogger == null) {
+            throw new IllegalStateException("ReadOnly mode");
+        }
+        eventLogger.addLog(new Event(getAddress(), indexed, data));
+    }
+
+    @Override
+    public List<Event> getLastEventLogs() {
+        return lastLogs;
     }
 }

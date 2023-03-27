@@ -19,6 +19,7 @@ package com.iconloop.score.test;
 import score.Address;
 
 import java.math.BigInteger;
+import java.util.List;
 
 public abstract class ServiceManager {
     /**
@@ -154,6 +155,13 @@ public abstract class ServiceManager {
      * @return last block information
      */
     public abstract Block getBlock();
+
+    /**
+     * Get event logs of the last transaction.
+     * @see GenerateTScore
+     * @return list of events
+     */
+    public abstract List<Event> getLastEventLogs();
 
 
     public interface Block {
