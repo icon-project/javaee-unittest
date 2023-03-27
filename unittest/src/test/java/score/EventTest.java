@@ -54,7 +54,22 @@ public class EventTest {
                     new Object[]{1}
             );
         });
+        assertDoesNotThrow(() -> {
+            new Event(
+                    addr1,
+                    new Object[]{"TestLog(int,int,int)", BigInteger.ONE, BigInteger.ONE, BigInteger.ONE},
+                    null
+            );
+        });
+        assertThrows(IllegalArgumentException.class, () -> {
+            new Event(
+                    addr1,
+                    new Object[]{"TestLog(int,int,int,int)", BigInteger.ONE, BigInteger.ONE, BigInteger.ONE, BigInteger.ONE},
+                    null
+            );
+        });
     }
+
     @Test
     void testEquals() {
         var log1 = new Event(

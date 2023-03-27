@@ -51,14 +51,13 @@ public class TScoreTest {
 
     public static class IndexedOnlyContract {
         @External
-        public void emit(byte[] arg1, byte arg2, char arg3, boolean arg4) {
-            Context.println("arg1:" + new String(arg1) + ",arg2:" + arg2 +
-                    ",arg3:" + arg3 + ",arg4:" + arg4);
-            IndexedOnly(arg1, arg2, arg3, arg4);
+        public void emit(byte[] arg1, byte arg2, char arg3) {
+            Context.println("arg1:" + new String(arg1) + ",arg2:" + arg2 + ",arg3:" + arg3);
+            IndexedOnly(arg1, arg2, arg3);
         }
 
-        @EventLog(indexed = 4)
-        public void IndexedOnly(byte[] arg1, byte arg2, char arg3, boolean arg4) {
+        @EventLog(indexed = 3)
+        public void IndexedOnly(byte[] arg1, byte arg2, char arg3) {
         }
     }
 
@@ -138,11 +137,10 @@ public class TScoreTest {
         byte[] arg1 = "bytesValue".getBytes();
         byte arg2 = 0x2;
         char arg3 = '3';
-        boolean arg4 = true;
-        indexedOnlyClient.emit(arg1, arg2, arg3, arg4);
+        indexedOnlyClient.emit(arg1, arg2, arg3);
         var logs = sm.getLastEventLogs();
         assertTrue(logs.contains(
-                indexedOnlyClient.IndexedOnly(arg1, arg2, arg3, arg4)));
+                indexedOnlyClient.IndexedOnly(arg1, arg2, arg3)));
     }
 
     @Test

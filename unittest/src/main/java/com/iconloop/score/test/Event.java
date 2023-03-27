@@ -30,8 +30,9 @@ public class Event {
         if (contract != null && !contract.isContract()) {
             throw new IllegalArgumentException("invalid contract address");
         }
-        if (indexed == null || indexed.length<1) {
-            throw new IllegalArgumentException("invalid indexed parameter");
+        if (indexed == null || indexed.length < 1 || indexed.length > 4) {
+            throw new IllegalArgumentException("invalid indexed parameter: length=" +
+                    ((indexed != null) ? indexed.length : "null"));
         }
         this.contract = contract;
         this.indexed = indexed;
