@@ -352,7 +352,27 @@ public class GenerateTScoreProcessor extends AbstractProcessor {
     }
 
     static TypeName externalAnnName = TypeName.get(TExternal.class);
+    static TypeName optionalAnnName = TypeName.get(TOptional.class);
     static TypeName eventAnnName = TypeName.get(EventLog.class);
+
+    private static boolean hasOptional(ParameterSpec p) {
+        return p.annotations.stream().anyMatch(
+                a -> a.type.equals(optionalAnnName)
+        );
+    }
+
+    private List<List<ParameterSpec>> explodeOptionalParameters(List<ParameterSpec> params) {
+        List<List<ParameterSpec>> specs = new ArrayList<>();
+        List<ParameterSpec> spec = new ArrayList<>();
+        for (var p : params) {
+            if (hasOptional(p)) {
+                specs.add(List.copyOf(spec));
+            }
+            spec.add(ParameterSpec.builder(p.type, p.name, p.modifiers.toArray(Modifier[]::new)).build());
+        }
+        specs.add(List.copyOf(spec));
+        return specs;
+    }
 
     private TypeSpec clientTypeSpec(ClassName tScoreClassName, List<MethodSpec> methods) {
         ClassName className = tScoreClassName.nestedClass("Client");
@@ -382,7 +402,7 @@ public class GenerateTScoreProcessor extends AbstractProcessor {
                 .map(m -> m.parameters)
                 .orElse(new ArrayList<>());
         MethodSpec.Builder deployMethodBuilder = MethodSpec.methodBuilder("deploy")
-                .addModifiers(Modifier.STATIC)
+                .addModifiers(Modifier.STATIC, Modifier.PUBLIC)
                 .addException(Exception.class)
                 .addParameter(ServiceManager.class, "sm")
                 .addParameter(Account.class, "caller")
@@ -410,32 +430,37 @@ public class GenerateTScoreProcessor extends AbstractProcessor {
         for (MethodSpec method : methods) {
             AnnotationSpec ann = method.annotations.stream().filter(a -> a.type.equals(externalAnnName)).findAny().orElse(null);
             if (ann != null) {
-                MethodSpec.Builder externalMethodBuilder = MethodSpec.methodBuilder(method.name)
-                        .addModifiers(method.modifiers);
                 boolean readonly = ann.members.get("readonly").get(0).toString().equals("true");
                 boolean payable = ann.members.get("payable").get(0).toString().equals("true");
-                List<String> paramNames = method.parameters.stream().map(p -> p.name).collect(Collectors.toList());
-                String params = paramJoin(paramNames);
-                if (paramNames.size() > 0) {
-                    params = ", " + params;
-                }
-                if (readonly) {
-                    externalMethodBuilder.addStatement("return this.$L.call($T.class, \"$L\"$L)",
-                            FILED_SCORE, method.returnType, method.name, params).returns(method.returnType);
-                } else {
-                    if (payable) {
-                        String PARAM_VALUE = resolveName(paramNames, "valueForPayable");
-                        externalMethodBuilder.addParameter(ParameterSpec.builder(BigInteger.class, PARAM_VALUE).build());
-                        externalMethodBuilder.addStatement("this.$L.invoke(this.$L, $L, \"$L\"$L)",
-                                FILED_SCORE, FILED_FROM, PARAM_VALUE, method.name, params);
-                    } else {
-                        externalMethodBuilder.addStatement("this.$L.invoke(this.$L, \"$L\"$L)",
-                                FILED_SCORE, FILED_FROM, method.name, params);
+
+                List<List<ParameterSpec>> parameterSets =
+                        explodeOptionalParameters(method.parameters);
+                for (var parameters : parameterSets) {
+                    MethodSpec.Builder externalMethodBuilder = MethodSpec.methodBuilder(method.name)
+                            .addModifiers(method.modifiers);
+                    List<String> paramNames = parameters.stream().map(p -> p.name).collect(Collectors.toList());
+                    String params = paramJoin(paramNames);
+                    if (paramNames.size() > 0) {
+                        params = ", " + params;
                     }
+                    if (readonly) {
+                        externalMethodBuilder.addStatement("return this.$L.call($T.class, \"$L\"$L)",
+                                FILED_SCORE, method.returnType, method.name, params).returns(method.returnType);
+                    } else {
+                        if (payable) {
+                            String PARAM_VALUE = resolveName(paramNames, "valueForPayable");
+                            externalMethodBuilder.addParameter(ParameterSpec.builder(BigInteger.class, PARAM_VALUE).build());
+                            externalMethodBuilder.addStatement("this.$L.invoke(this.$L, $L, \"$L\"$L)",
+                                    FILED_SCORE, FILED_FROM, PARAM_VALUE, method.name, params);
+                        } else {
+                            externalMethodBuilder.addStatement("this.$L.invoke(this.$L, \"$L\"$L)",
+                                    FILED_SCORE, FILED_FROM, method.name, params);
+                        }
+                    }
+                    builder.addMethod(externalMethodBuilder
+                            .addParameters(parameters)
+                            .build());
                 }
-                builder.addMethod(externalMethodBuilder
-                        .addParameters(method.parameters)
-                        .build());
             } else {
                 boolean isEvent = method.annotations.stream().anyMatch(a -> a.type.equals(eventAnnName));
                 if (isEvent) {
