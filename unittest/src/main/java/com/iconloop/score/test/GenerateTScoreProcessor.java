@@ -411,8 +411,7 @@ public class GenerateTScoreProcessor extends AbstractProcessor {
             AnnotationSpec ann = method.annotations.stream().filter(a -> a.type.equals(externalAnnName)).findAny().orElse(null);
             if (ann != null) {
                 MethodSpec.Builder externalMethodBuilder = MethodSpec.methodBuilder(method.name)
-                        .addModifiers(method.modifiers)
-                        .returns(method.returnType);
+                        .addModifiers(method.modifiers);
                 boolean readonly = ann.members.get("readonly").get(0).toString().equals("true");
                 boolean payable = ann.members.get("payable").get(0).toString().equals("true");
                 List<String> paramNames = method.parameters.stream().map(p -> p.name).collect(Collectors.toList());
@@ -422,7 +421,7 @@ public class GenerateTScoreProcessor extends AbstractProcessor {
                 }
                 if (readonly) {
                     externalMethodBuilder.addStatement("return this.$L.call($T.class, \"$L\"$L)",
-                            FILED_SCORE, method.returnType, method.name, params);
+                            FILED_SCORE, method.returnType, method.name, params).returns(method.returnType);
                 } else {
                     if (payable) {
                         String PARAM_VALUE = resolveName(paramNames, "valueForPayable");
