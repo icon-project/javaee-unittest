@@ -175,6 +175,41 @@ public final class Context extends TestBase {
         return Crypto.aggregate(type, prevAgg, values);
     }
 
+    public static byte[] ecAdd(String curve, byte[] data, boolean compressed) {
+        require(null != curve, "Elliptic curve can't be NULL");
+        require(null != data, "Data can't be NULL");
+        switch (curve) {
+            case "bls12-381-g1":
+                return Crypto.bls12381G1Add(data, compressed);
+            case "bls12-381-g2":
+                return Crypto.bls12381G2Add(data, compressed);
+        }
+        throw new IllegalArgumentException("Unsupported curve " + curve);
+    }
+
+    public static byte[] ecScalarMul(String curve, byte[] scalar, byte[] data, boolean compressed) {
+        require(null != curve, "Elliptic curve can't be NULL");
+        require(null != scalar, "Scalar can't be NULL");
+        require(null != data, "Data can't be NULL");
+        switch (curve) {
+            case "bls12-381-g1":
+                return Crypto.bls12381G1ScalarMul(scalar, data, compressed);
+            case "bls12-381-g2":
+                return Crypto.bls12381G2ScalarMul(scalar, data, compressed);
+        }
+        throw new IllegalArgumentException("Unsupported curve " + curve);
+    }
+
+    public static boolean ecPairingCheck(String curve, byte[] data, boolean compressed) {
+        require(null != curve, "Elliptic curve can't be NULL");
+        require(null != data, "Data can't be NULL");
+        switch (curve) {
+            case "bls12-381":
+                return Crypto.bls12381PairingCheck(data, compressed);
+        }
+        throw new IllegalArgumentException("Unsupported curve " + curve);
+    }
+
     public static Address getAddressFromKey(byte[] pubKey) {
         require(null != pubKey, "pubKey can't be NULL");
         return new Address(Crypto.getAddressBytesFromKey(pubKey));
