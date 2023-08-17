@@ -5,6 +5,9 @@ import score.Address;
 import score.ObjectReader;
 import score.ObjectWriter;
 
+import java.math.BigInteger;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -46,6 +49,40 @@ class TypeConverterTest {
             var bs = TypeConverter.toBytes(tc);
             var real = TypeConverter.fromBytes(tc.getClass(), bs);
             assertEquals(tc, real);
+        }
+    }
+
+    @Test
+    void normalizeList() {
+        var cases = new Object[] {
+                List.of("a", "b", "c"),
+                List.of(BigInteger.ZERO, BigInteger.ONE),
+                List.of(new byte[]{0x1, 0x2}, new byte[]{0x3, 0x4}),
+                List.of(Map.of("a", BigInteger.ZERO), Map.of("b", BigInteger.ONE)),
+                List.of(Address.fromString("hx0800000000000000000000000000000000000000")),
+                new boolean[]{false, true},
+                new int[]{1, 2, 3},
+                new long[]{1L, 2L, 3L},
+                new String[]{"a", "b", "c"},
+                new BigInteger[]{BigInteger.ZERO, BigInteger.ONE},
+                new Address[]{Address.fromString("hx0800000000000000000000000000000000000000")}
+        };
+        for (var tc : cases) {
+            //noinspection unchecked
+            assertDoesNotThrow(() -> (List<Object>) TypeConverter.cast(tc));
+        }
+    }
+
+    @Test
+    void normalizeMap() {
+        var cases = new Object[] {
+                Map.of("a", BigInteger.ZERO, "b", BigInteger.ONE),
+                Map.of("a", List.of("a", "b", "c")),
+                Map.of("a", List.of(Map.of("a", BigInteger.ZERO)))
+        };
+        for (var tc : cases) {
+            //noinspection unchecked
+            assertDoesNotThrow(() -> (Map<String, Object>) TypeConverter.cast(tc));
         }
     }
 
@@ -91,6 +128,23 @@ class TypeConverterTest {
             var bs = TypeConverter.toBytes(tc);
             var obj = TypeConverter.fromBytes(TestObject.class, bs);
             assertEquals(tc, obj);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void arrayTo() {
+        var value = new int[]{ 1, 2, 3};
+
+        var arrayValue = TypeConverter.cast(value, long[].class);
+        assertArrayEquals(new long[]{ 1, 2, 3}, arrayValue);
+
+        var listValue = TypeConverter.cast(value);
+        var realValue = (List<BigInteger>)listValue;
+        int idx = 0;
+        for (var v : realValue) {
+            assertEquals(value[idx], v.intValueExact());
+            idx+=1;
         }
     }
 }

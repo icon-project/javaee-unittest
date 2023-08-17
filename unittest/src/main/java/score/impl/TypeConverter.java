@@ -32,8 +32,11 @@ import java.util.List;
 import java.util.Map;
 
 public class TypeConverter {
-    @SuppressWarnings("unchecked")
-    public static Object normalize(Object so) {
+    private static Object normalize(Object so) {
+        return normalize(so, false);
+    }
+
+    private static Object normalize(Object so, boolean ret) {
         if (so==null) {
             return null;
         }
@@ -68,56 +71,57 @@ public class TypeConverter {
             for (int i = 0 ; i<o.length ; i++) {
                 no[i] = o[i];
             }
-            return no;
+            return ret ? List.of(no) : no;
         } else if (so instanceof char[]) {
             var o = (char[]) so;
             var no = new Object[o.length];
             for (int i = 0 ; i<o.length ; i++) {
                 no[i] = BigInteger.valueOf(o[i]);
             }
-            return no;
+            return ret ? List.of(no) : no;
         } else if (so instanceof short[]) {
             var o = (short[]) so;
             var no = new Object[o.length];
             for (int i = 0 ; i<o.length ; i++) {
                 no[i] = BigInteger.valueOf(o[i]);
             }
-            return no;
+            return ret ? List.of(no) : no;
         } else if (so instanceof int[]) {
             var o = (int[]) so;
             var no = new Object[o.length];
             for (int i = 0 ; i<o.length ; i++) {
                 no[i] = BigInteger.valueOf(o[i]);
             }
-            return no;
+            return ret ? List.of(no) : no;
         } else if (so instanceof long[]) {
             var o = (long[]) so;
             var no = new Object[o.length];
             for (int i = 0; i < o.length; i++) {
                 no[i] = BigInteger.valueOf(o[i]);
             }
-            return no;
+            return ret ? List.of(no) : no;
         } else if (so instanceof List) {
             var o = (List<?>)so;
             var no = new Object[o.size()];
             for (int i=0 ; i<no.length ; i++) {
-                no[i] = normalize(o.get(i));
+                no[i] = normalize(o.get(i), ret);
             }
-            return no;
+            return ret ? List.of(no) : no;
         } else if (so instanceof Map) {
+            @SuppressWarnings("unchecked")
             var o = (Map<String,Object>)so;
             var no = new LinkedHashMap<>();
             for (Map.Entry<String,Object> pair : o.entrySet()) {
-                no.put(pair.getKey(), normalize(pair.getValue()));
+                no.put(pair.getKey(), normalize(pair.getValue(), ret));
             }
             return no;
         } else if (clz.isArray()){
             var o = (Object[])so;
             var no = new Object[o.length];
             for (int i=0 ; i<o.length ; i++) {
-                no[i] = normalize(o[i]);
+                no[i] = normalize(o[i], ret);
             }
-            return no;
+            return ret ? List.of(no) : no;
         } else {
             var rProps = Property.getReadableProperties(so);
             if (rProps.isEmpty()) {
@@ -126,7 +130,7 @@ public class TypeConverter {
             var map = new java.util.TreeMap<>();
             for (var rp : rProps) {
                 try {
-                    map.put(rp.getName(), normalize(rp.get(so)));
+                    map.put(rp.getName(), normalize(rp.get(so), ret));
                 } catch (InvocationTargetException|IllegalAccessException e) {
                     throw new IllegalArgumentException(e);
                 }
@@ -197,8 +201,12 @@ public class TypeConverter {
         return (T)specialize(normalize(so), cls);
     }
 
+    public static Object cast(Object so) {
+        return normalize(so, true);
+    }
+
     @SuppressWarnings("unchecked")
-    public static Object specialize(Object so, Class<?> cls) {
+    private static Object specialize(Object so, Class<?> cls) {
         if (so == null ) {
             return null;
         }
@@ -272,7 +280,7 @@ public class TypeConverter {
     public static Object[] asEventObjects(Object[] objs) {
         Object[] normalized = new Object[objs.length];
         for (int i = 0; i < objs.length; i++) {
-            normalized[i] = normalize(objs[i]);
+            normalized[i] = normalize(objs[i], false);
         }
         return normalized;
     }

@@ -26,6 +26,8 @@ import score.annotation.External;
 import score.annotation.Payable;
 
 import java.math.BigInteger;
+import java.util.Arrays;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -56,6 +58,36 @@ public class IntercallTest extends TestBase {
         @External(readonly = true)
         public BigInteger getStored() {
             return store.getOrDefault(BigInteger.ZERO);
+        }
+
+        @External(readonly=true)
+        public boolean[] getBoolArray(boolean[] v) {
+            return v;
+        }
+
+        @External(readonly=true)
+        public int[] getIntArray(int[] v) {
+            return v;
+        }
+
+        @External(readonly=true)
+        public String[] getStrArray(String[] v) {
+            return v;
+        }
+
+        @External(readonly=true)
+        public byte[][] getBytesArray(byte[][] v) {
+            return v;
+        }
+
+        @External(readonly=true)
+        public Address[] getAddressArray(Address[] v) {
+            return v;
+        }
+
+        @External(readonly=true)
+        public BigInteger[] getBigIntArray(BigInteger[] v) {
+            return v;
         }
     }
 
@@ -94,12 +126,180 @@ public class IntercallTest extends TestBase {
         public void transfer(Address target, BigInteger value) {
             Context.transfer(target, value);
         }
+
+        @External
+        public void callWithType(Address target, String type) {
+            switch (type) {
+                case "bool": {
+                    var ba = new boolean[]{false, true};
+                    var ret = (List<Object>) Context.call(target, "getBoolArray", (Object) ba);
+                    Context.require(ret.size() == ba.length);
+                    for (int i = 0; i < ba.length; i++) {
+                        var e = ret.get(i);
+                        if (e instanceof Boolean) {
+                            Context.require(((Boolean) e) == ba[i]);
+                        } else {
+                            Context.revert("not a boolean");
+                        }
+                    }
+                    break;
+                }
+                case "int": {
+                    var ia = new int[]{1, 2, 3};
+                    var ret = (List<Object>) Context.call(target, "getIntArray", (Object) ia);
+                    Context.require(ret.size() == ia.length);
+                    for (int i = 0; i < ia.length; i++) {
+                        var e = ret.get(i);
+                        if (e instanceof BigInteger) {
+                            Context.require(((BigInteger) e).intValue() == ia[i]);
+                        } else {
+                            Context.revert("not a BigInteger");
+                        }
+                    }
+                    break;
+                }
+                case "str": {
+                    var sa = new String[]{"a", "b", "c"};
+                    var ret = (List<Object>) Context.call(target, "getStrArray", (Object) sa);
+                    Context.require(ret.size() == sa.length);
+                    for (int i = 0; i < sa.length; i++) {
+                        var e = ret.get(i);
+                        if (e instanceof String) {
+                            Context.require(e.equals(sa[i]));
+                        } else {
+                            Context.revert("not a String");
+                        }
+                    }
+                    break;
+                }
+                case "bytes": {
+                    var ba = new byte[][]{new byte[]{0x1, 0x2}, new byte[]{0x3, 0x4}};
+                    var ret = (List<Object>) Context.call(target, "getBytesArray", (Object) ba);
+                    Context.require(ret.size() == ba.length);
+                    for (int i = 0; i < ba.length; i++) {
+                        var e = ret.get(i);
+                        if (e instanceof byte[]) {
+                            Context.require(Arrays.equals((byte[]) e, ba[i]));
+                        } else {
+                            Context.revert("not a byte[]");
+                        }
+                    }
+                    break;
+                }
+                case "Address": {
+                    var aa = new Address[]{
+                            Address.fromString("hx0000000000000000000000000000000000000001"),
+                            Address.fromString("hx0000000000000000000000000000000000000002")
+                    };
+                    var ret = (List<Object>) Context.call(target, "getAddressArray", (Object) aa);
+                    Context.require(ret.size() == aa.length);
+                    for (int i = 0; i < aa.length; i++) {
+                        var e = ret.get(i);
+                        if (e instanceof Address) {
+                            Context.require(e.equals(aa[i]));
+                        } else {
+                            Context.revert("not an Address");
+                        }
+                    }
+                    break;
+                }
+                case "bigInt": {
+                    var ba = new BigInteger[]{BigInteger.ZERO, BigInteger.ONE, BigInteger.TWO};
+                    var ret = (List<Object>) Context.call(target, "getBigIntArray", (Object) ba);
+                    Context.require(ret.size() == ba.length);
+                    for (int i = 0; i < ba.length; i++) {
+                        var e = ret.get(i);
+                        if (e instanceof BigInteger) {
+                            Context.require(e.equals(ba[i]));
+                        } else {
+                            Context.revert("not a BigInteger");
+                        }
+                    }
+                    break;
+                }
+                case "boolList": {
+                    var bl = List.of(false, true);
+                    var ret = (List<Object>) Context.call(target, "getBoolArray", (Object) bl);
+                    Context.require(ret.size() == bl.size());
+                    for (int i = 0; i < bl.size(); i++) {
+                        var e = ret.get(i);
+                        if (e instanceof Boolean) {
+                            Context.require(e == bl.get(i));
+                        } else {
+                            Context.revert("not a boolean");
+                        }
+                    }
+                    break;
+                }
+                case "intList": {
+                    var il = List.of(1, 2, 3);
+                    var ret = (List<Object>) Context.call(target, "getIntArray", (Object) il);
+                    Context.require(ret.size() == il.size());
+                    for (int i = 0; i < il.size(); i++) {
+                        var e = ret.get(i);
+                        if (e instanceof BigInteger) {
+                            Context.require(((BigInteger) e).intValue() == il.get(i));
+                        } else {
+                            Context.revert("not a BigInteger");
+                        }
+                    }
+                    break;
+                }
+                case "strList": {
+                    var sl = List.of("a", "b", "c");
+                    var ret = (List<Object>) Context.call(target, "getStrArray", (Object) sl);
+                    Context.require(ret.size() == sl.size());
+                    for (int i = 0; i < sl.size(); i++) {
+                        var e = ret.get(i);
+                        if (e instanceof String) {
+                            Context.require(e.equals(sl.get(i)));
+                        } else {
+                            Context.revert("not a String");
+                        }
+                    }
+                    break;
+                }
+                case "bytesList": {
+                    var bl = List.of(new byte[]{0x1, 0x2}, new byte[]{0x3, 0x4});
+                    var ret = (List<Object>) Context.call(target, "getBytesArray", (Object) bl);
+                    Context.require(ret.size() == bl.size());
+                    for (int i = 0; i < bl.size(); i++) {
+                        var e = ret.get(i);
+                        if (e instanceof byte[]) {
+                            Context.require(Arrays.equals((byte[]) e, bl.get(i)));
+                        } else {
+                            Context.revert("not a byte[]");
+                        }
+                    }
+                    break;
+                }
+                case "AddressList": {
+                    var aa = List.of(
+                            Address.fromString("hx0000000000000000000000000000000000000001"),
+                            Address.fromString("hx0000000000000000000000000000000000000002")
+                    );
+                    var ret = (List<Object>) Context.call(target, "getAddressArray", (Object) aa);
+                    Context.require(ret.size() == aa.size());
+                    for (int i = 0; i < aa.size(); i++) {
+                        var e = ret.get(i);
+                        if (e instanceof Address) {
+                            Context.require(e.equals(aa.get(i)));
+                        } else {
+                            Context.revert("not an Address");
+                        }
+                    }
+                    break;
+                }
+                default:
+                    Context.revert("Unknown type: " + type);
+            }
+        }
     }
 
     private static Score callee;
     private static Score callee2;
     private static Score caller;
-    private static Account user1 = sm.createAccount();
+    private static final Account user1 = sm.createAccount();
 
     @BeforeAll
     static void setup() throws Exception {
@@ -109,10 +309,21 @@ public class IntercallTest extends TestBase {
     }
 
     @Test
-    void testProxyCall() throws Exception {
+    void testProxyCall() {
         assertDoesNotThrow(() ->
                 caller.invoke(owner, "proxyCall", callee.getAddress())
         );
+    }
+
+    @Test
+    void testTypeConversion() {
+        String[] tests = {
+                "bool", "int", "str", "bytes", "Address", "bigInt",
+                "boolList", "intList", "strList", "bytesList", "AddressList"};
+        for (var type : tests) {
+            assertDoesNotThrow(() ->
+                    caller.invoke(owner, "callWithType", callee.getAddress(), type));
+        }
     }
 
     @Test
