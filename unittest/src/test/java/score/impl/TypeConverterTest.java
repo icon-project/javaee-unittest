@@ -68,7 +68,8 @@ class TypeConverterTest {
                 new Address[]{Address.fromString("hx0800000000000000000000000000000000000000")}
         };
         for (var tc : cases) {
-            assertDoesNotThrow(() -> (List<Object>) TypeConverter.normalize(tc));
+            //noinspection unchecked
+            assertDoesNotThrow(() -> (List<Object>) TypeConverter.cast(tc));
         }
     }
 
@@ -80,7 +81,8 @@ class TypeConverterTest {
                 Map.of("a", List.of(Map.of("a", BigInteger.ZERO)))
         };
         for (var tc : cases) {
-            assertDoesNotThrow(() -> (Map<String, Object>) TypeConverter.normalize(tc));
+            //noinspection unchecked
+            assertDoesNotThrow(() -> (Map<String, Object>) TypeConverter.cast(tc));
         }
     }
 
@@ -126,6 +128,23 @@ class TypeConverterTest {
             var bs = TypeConverter.toBytes(tc);
             var obj = TypeConverter.fromBytes(TestObject.class, bs);
             assertEquals(tc, obj);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void arrayTo() {
+        var value = new int[]{ 1, 2, 3};
+
+        var arrayValue = TypeConverter.cast(value, long[].class);
+        assertArrayEquals(new long[]{ 1, 2, 3}, arrayValue);
+
+        var listValue = TypeConverter.cast(value);
+        var realValue = (List<BigInteger>)listValue;
+        int idx = 0;
+        for (var v : realValue) {
+            assertEquals(value[idx], v.intValueExact());
+            idx+=1;
         }
     }
 }

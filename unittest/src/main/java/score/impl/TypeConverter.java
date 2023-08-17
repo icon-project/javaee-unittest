@@ -32,8 +32,8 @@ import java.util.List;
 import java.util.Map;
 
 public class TypeConverter {
-    public static Object normalize(Object so) {
-        return normalize(so, true);
+    private static Object normalize(Object so) {
+        return normalize(so, false);
     }
 
     private static Object normalize(Object so, boolean ret) {
@@ -201,9 +201,8 @@ public class TypeConverter {
         return (T)specialize(normalize(so), cls);
     }
 
-    @SuppressWarnings("unchecked")
-    public static<T> T parameterize(Object so, Class<T> cls) {
-        return (T)specialize(normalize(so, false), cls);
+    public static Object cast(Object so) {
+        return normalize(so, true);
     }
 
     @SuppressWarnings("unchecked")

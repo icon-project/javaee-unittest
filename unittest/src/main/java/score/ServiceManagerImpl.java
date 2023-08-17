@@ -608,7 +608,7 @@ class ServiceManagerImpl extends ServiceManager implements AnyDBImpl.ValueStore 
                 parsedParams[i] = null;
             } else {
                 try {
-                    parsedParams[i] = TypeConverter.parameterize(params[i], parameterClass);
+                    parsedParams[i] = TypeConverter.cast(params[i], parameterClass);
                 } catch (RuntimeException e) {
                     throw new IllegalArgumentException(
                             String.format("InvalidParameter(idx=%d,target=%s,source=%s)",

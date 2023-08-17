@@ -92,7 +92,7 @@ public final class Context extends TestBase {
 
     public static Object call(BigInteger value,
                               Address targetAddress, String method, Object... params) {
-        return TypeConverter.normalize(sm.call(value, targetAddress, method, params));
+        return TypeConverter.cast(sm.call(value, targetAddress, method, params));
     }
 
     public static<T> T call(Class<T> cls,
@@ -101,7 +101,7 @@ public final class Context extends TestBase {
     }
 
     public static Object call(Address targetAddress, String method, Object... params) {
-        return TypeConverter.normalize(sm.call(BigInteger.ZERO, targetAddress, method, params));
+        return TypeConverter.cast(sm.call(BigInteger.ZERO, targetAddress, method, params));
     }
 
     public static void transfer(Address targetAddress, BigInteger value) {
