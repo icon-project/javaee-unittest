@@ -31,6 +31,7 @@ import score.impl.Crypto;
 import score.impl.TypeConverter;
 
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Executable;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.math.BigInteger;
@@ -149,7 +150,12 @@ class ServiceManagerImpl extends ServiceManager implements AnyDBImpl.ValueStore 
                 // User SCORE should only have one public constructor
                 throw new AssertionError("multiple public constructors found");
             }
-            score.setInstance(ctor[0].newInstance(params));
+            var readonly = checkAnnotationsAndReadOnly(mainClass, ctor[0], params.length, false, false, false);
+            if (readonly) {
+                throw new IllegalStateException("ExternalReadOnlyConstructor(class="+mainClass+")");
+            }
+            var params2 = convertParameters(ctor[0], params);
+            score.setInstance(ctor[0].newInstance(params2));
             applyFrame();
         } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
             throw e;
@@ -310,55 +316,8 @@ class ServiceManagerImpl extends ServiceManager implements AnyDBImpl.ValueStore 
             throw new IllegalArgumentException(
                     "NoValidMethod(score="+score.getAddress()+",method="+method+")");
         }
-        if (scoreClass.isAnnotationPresent(TScore.class)) {
-            // reject calling internal method
-            var external = scoreMethod.getAnnotation(TExternal.class);
-            if (external==null) {
-                throw new IllegalArgumentException(
-                        "NotExternal(score="+score.getAddress()+",method="+method+")"
-                );
-            }
-
-            // reject calling writable in readonly context
-            if (isReadonly() && !external.readonly()) {
-                throw new IllegalArgumentException(
-                        "PermissionDenied(score="+score.getAddress()+",method="+method+")"
-                );
-            }
-            readonly |= external.readonly();
-
-            // check payable
-            if (!external.payable() && value.signum()>0) {
-                throw new IllegalArgumentException(
-                        "NotPayable(score="+score.getAddress()+",method="+method+")"
-                );
-            }
-
-            // optional parameter check.
-            var parameterAnnotations = scoreMethod.getParameterAnnotations();
-            int minParams = parameterAnnotations.length;
-            for (int i=0 ; i<parameterAnnotations.length ; i++) {
-                if (Arrays.stream(parameterAnnotations[i])
-                        .anyMatch((a)->(a.annotationType().equals(TOptional.class)))) {
-                    if (i < minParams) {
-                        minParams = i;
-                    } else {
-                        throw new IllegalArgumentException(
-                                "InvalidOptionalTag(score=" + score.getAddress() + ",method=" + method + ")"
-                        );
-                    }
-                }
-            }
-            if (params.length < minParams) {
-                throw new IllegalArgumentException(
-                        "NotEnoughParams(score=" + score.getAddress()
-                                + ",method=" + method
-                                + ",min=" + minParams
-                                + ",given=" + params.length
-                                + ")"
-                );
-            }
-        }
+        readonly = checkAnnotationsAndReadOnly(scoreClass, scoreMethod, params.length,
+                true, isReadonly()|readonly, value.signum()>0);
         Account to = score.getAccount();
         pushFrame(from, to, readonly, method, value);
         try {
@@ -592,10 +551,54 @@ class ServiceManagerImpl extends ServiceManager implements AnyDBImpl.ValueStore 
         return getServiceManagerImpl();
     }
 
-    private static Object[] convertParameters(Method method, Object[] params) {
+    private static Object defaultValueFor(Class<?> clz) {
+        if (clz==boolean.class) {
+            return false;
+        } else if (clz==byte.class || clz==Byte.class) {
+            return (byte) 0x00;
+        } else if (clz==char.class || clz==Character.class) {
+            return (char) 0x00;
+        } else if (clz==short.class || clz==Short.class) {
+            return (short) 0x00;
+        } else if (clz==int.class || clz==Integer.class) {
+            return 0;
+        } else if (clz==long.class || clz==Long.class) {
+            return 0L;
+        } else if (clz==BigInteger.class) {
+            return BigInteger.ZERO;
+        }
+        return null;
+    }
+
+    private static Object[] convertParameters(Executable method, Object[] params) {
         Class<?>[] parameterTypes = method.getParameterTypes();
         int numberOfParams = parameterTypes.length;
         Object[] parsedParams = new Object[numberOfParams];
+
+        var scoreClz = method.getDeclaringClass();
+        if (scoreClz.isAnnotationPresent(TScore.class)) {
+            var annotations = method.getParameterAnnotations();
+            int minParams = annotations.length;
+            for (int i=0 ; i<annotations.length ; i++) {
+                if (Arrays.stream(annotations[i])
+                        .anyMatch((a)->(a.annotationType().equals(TOptional.class)))) {
+                    if (i < minParams) {
+                        minParams = i;
+                    } else {
+                        throw new IllegalArgumentException(
+                                "InvalidOptionalTag(class=" + method.getDeclaringClass().getName() + ",method=" + method + ")"
+                        );
+                    }
+                }
+            }
+            if (params.length < minParams) {
+                throw new IllegalArgumentException(
+                        String.format("NotEnoughParameter(given=%d,min=%d)",
+                                params.length, minParams
+                        )
+                );
+            }
+        }
 
         int i = 0;
         for (Class<?> parameterClass : parameterTypes) {
@@ -605,7 +608,7 @@ class ServiceManagerImpl extends ServiceManager implements AnyDBImpl.ValueStore 
                                 i, parameterClass.getName()));
             }
             if (i>=params.length) {
-                parsedParams[i] = null;
+                parsedParams[i] = defaultValueFor(parameterClass);
             } else {
                 try {
                     parsedParams[i] = TypeConverter.cast(params[i], parameterClass);
@@ -618,6 +621,59 @@ class ServiceManagerImpl extends ServiceManager implements AnyDBImpl.ValueStore 
             i++;
         }
         return parsedParams;
+    }
+
+
+    private boolean checkAnnotationsAndReadOnly(Class<?> scoreClz, Executable method, int params, boolean external, boolean readonly, boolean payable) {
+        if (!scoreClz.isAnnotationPresent(TScore.class)) {
+            return false;
+        }
+        var externalAnnotation = method.getAnnotation(TExternal.class);
+        if (externalAnnotation==null) {
+            if (external) {
+                throw new IllegalArgumentException(
+                        "NotExternal(score="+scoreClz.getName()+",method="+method+")"
+                );
+            }
+        } else {
+            if (readonly && !externalAnnotation.readonly()) {
+                throw new IllegalArgumentException(
+                        "PermissionDenied(score="+
+                                scoreClz.getName()+",method="+method+")"
+                );
+            }
+            readonly |= externalAnnotation.readonly();
+            if (payable && !externalAnnotation.payable()) {
+                throw new IllegalArgumentException(
+                        "NotPayable(score="+
+                                scoreClz.getName()+",method="+method+")"
+                );
+            }
+        }
+        var annotations = method.getParameterAnnotations();
+        int minParams = annotations.length;
+        for (int i=0 ; i<annotations.length ; i++) {
+            if (Arrays.stream(annotations[i])
+                    .anyMatch((a)->(a.annotationType().equals(TOptional.class)))) {
+                if (i < minParams) {
+                    minParams = i;
+                } else {
+                    throw new IllegalArgumentException(
+                            "InvalidOptionalTag(class=" + scoreClz.getName() + ",method=" + method + ")"
+                    );
+                }
+            }
+        }
+        if (params < minParams) {
+            throw new IllegalArgumentException(
+                    String.format("NotEnoughParameter(score=%s,method=%s,given=%d,min=%d)",
+                            scoreClz.getName(),
+                            method.toString(),
+                            params, minParams
+                    )
+            );
+        }
+        return readonly;
     }
 
     private Object invokeMethod(Score score, String methodName, Object[] params) {

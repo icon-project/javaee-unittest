@@ -210,21 +210,21 @@ public class TypeConverter {
         if (so == null ) {
             return null;
         }
-        if (cls == so.getClass() || cls == boolean.class) {
+        if (cls == so.getClass() || cls == boolean.class || cls == Boolean.class) {
             return so;
-        } else if (cls == byte.class) {
+        } else if (cls == byte.class || cls == Byte.class) {
             var o = (BigInteger)so;
             return o.byteValueExact();
-        } else if (cls == char.class) {
+        } else if (cls == char.class || cls == Character.class) {
             var o = (BigInteger)so;
             requireCharacterRange(o);
             return (char)o.intValue();
-        } else if (cls == short.class) {
+        } else if (cls == short.class || cls == Short.class) {
             var o = (BigInteger)so;
             return o.shortValueExact();
-        } else if (cls == int.class) {
+        } else if (cls == int.class || cls == Integer.class) {
             return ((BigInteger)so).intValueExact();
-        } else if (cls == long.class) {
+        } else if (cls == long.class || cls == Long.class) {
             return ((BigInteger) so).longValueExact();
         } else if (cls == List.class) {
             var o = (Object[])so;

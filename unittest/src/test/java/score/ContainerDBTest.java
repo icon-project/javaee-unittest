@@ -17,6 +17,7 @@
 package score;
 
 import com.iconloop.score.test.Account;
+import com.iconloop.score.test.GenerateTScore;
 import com.iconloop.score.test.Score;
 import com.iconloop.score.test.ServiceManager;
 import org.junit.jupiter.api.BeforeAll;
@@ -29,6 +30,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class ContainerDBTest {
     private static ServiceManager sm = ServiceManager.getInstance();
 
+    @GenerateTScore
     public static class TestContract {
         @External(readonly = true)
         public String getStringVarDB(String id) {
@@ -62,7 +64,7 @@ public class ContainerDBTest {
 
     @BeforeAll
     public static void setup() throws Exception {
-        score = sm.deploy(owner, TestContract.class);
+        score = sm.deploy(owner, ContainerDBTestTestContractTS.class);
     }
 
     @Test

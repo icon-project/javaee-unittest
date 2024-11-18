@@ -172,7 +172,7 @@ public class GenerateTScoreProcessor extends AbstractProcessor {
                 builder.addMethod(
                         MethodSpec.constructorBuilder()
                                 .addModifiers(ee.getModifiers())
-                                .addParameters(ProcessorUtil.getParameterSpecs(ee))
+                                .addParameters(GenerateTScoreProcessor.getParameterSpecs(typeElement, ee))
                                 .addStatement("super($L)", paramJoin(paramNames(ee)))
                                 .build());
             }
@@ -224,6 +224,29 @@ public class GenerateTScoreProcessor extends AbstractProcessor {
         return null;
     }
 
+    private static List<ParameterSpec> getParameterSpecs(TypeElement typeElement, ExecutableElement ee) {
+        boolean mustOptional = false;
+        List<ParameterSpec> params = new ArrayList<>();
+        for (VariableElement ve : ee.getParameters()) {
+            ParameterSpec param;
+            if (ve.getAnnotation(Optional.class) != null) {
+                param = ParameterSpec.builder(TypeName.get(ve.asType()), ve.getSimpleName().toString())
+                        .addModifiers(ve.getModifiers())
+                        .addAnnotation(TOptional.class)
+                        .build();
+                mustOptional = true;
+            } else {
+                if (mustOptional) {
+                    throw new RuntimeException(String.format("parameter should be optional, %s of %s.%s",
+                            ve.getSimpleName(), typeElement.getSimpleName(), ee.getSimpleName()));
+                }
+                param = ParameterSpec.get(ve);
+            }
+            params.add(param);
+        }
+        return params;
+    }
+
     private MethodSpec externalMethodSpec(ExecutableElement ee, TypeElement typeElement) {
         External ann = ee.getAnnotation(External.class);
         if (ann != null) {
@@ -233,26 +256,7 @@ public class GenerateTScoreProcessor extends AbstractProcessor {
                 throw new RuntimeException(String.format("readonly method cannot be payable, %s.%s",
                         typeElement.getSimpleName(), ee.getSimpleName()));
             }
-            boolean mustOptional = false;
-            List<ParameterSpec> params = new ArrayList<>();
-            for (VariableElement ve : ee.getParameters()) {
-                ParameterSpec param;
-                if (ve.getAnnotation(Optional.class) != null) {
-                    param = ParameterSpec.builder(TypeName.get(ve.asType()), ve.getSimpleName().toString())
-                            .addModifiers(ve.getModifiers())
-                            .addAnnotation(TOptional.class)
-                            .build();
-                    mustOptional = true;
-                } else {
-                    if (mustOptional) {
-                        throw new RuntimeException(String.format("parameter should be optional, %s of %s.%s",
-                                ve.getSimpleName(), typeElement.getSimpleName(), ee.getSimpleName()));
-                    }
-                    param = ParameterSpec.get(ve);
-                }
-                params.add(param);
-            }
-
+            var params = GenerateTScoreProcessor.getParameterSpecs(typeElement, ee);
             TypeName returnType = TypeName.get(ee.getReturnType());
             MethodSpec.Builder builder = MethodSpec.methodBuilder(ee.getSimpleName().toString())
                     .addModifiers(ee.getModifiers())
