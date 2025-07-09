@@ -124,7 +124,9 @@ public class Crypto {
     private static byte[] recoverECDSAKey(byte[] msgHash, byte[] signature, boolean compressed) {
         BigInteger r = BigIntegers.fromUnsignedByteArray(signature, 0, 32);
         BigInteger s = BigIntegers.fromUnsignedByteArray(signature, 32, 32);
-        return recoverFromSignature(signature[64], r, s, msgHash, compressed);
+        var k = recoverFromSignature(signature[64], r, s, msgHash, compressed);
+        require(k != null, "invalid signature");
+        return k;
     }
 
     public static byte[] getAddressBytesFromKey(byte[] pubKey) {
